@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+android-sdk/
+.android-env.sh
+android/local.properties
+android/.gradle/
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+*.apk
+!artifacts/GalacticLegends-debug.apk
