@@ -1,41 +1,27 @@
 # Galactic Legends — Kit / Status Link Audit
 
-## The Project — YES, fully defined in kits
+## Linked this pass
 
-From Imperial Architect ability text, The Project is:
+### Description-driven leader/unique passives (`descPassiveSystem.ts`)
+Parses kit text for previously unwired leaders/uniques (~88) and installs:
+- **Stat auras** at battle start (Speed / Offense% / Defense% / Max HP / Max Prot / Crit / Potency)
+- **Whenever** hooks: secrecy gained/consumed, buff/debuff gained, special used, crit, damage dealt/taken, assist, enemy/ally defeated, ally below 50%, burning gained
 
-- **Team-wide stack** shared by Imperial Architects (not per-unit only)
-- **Gains** from ability text (“Gain N stacks of The Project”)
-- **Complete at 25** → unlocks Piett’s Authority By All Means; team Offense/Defense Up; Krennic/Dodd thresholds
-- **Milestones 10/15/20** → Krennic lead Protection recover; Engineer CD −1
-- **Passives**: specials/defeats/Galen damage/buffs/Taunt hits advance stacks
-- **Consume**: Bevel Superlaser (up to 5); Authority consumes all
-- **Hostage Scientist**: Galen start-of-battle undispellable buff; damage/defeat advance Project
+Wired into `applySquadPassives`, `applyStatus`, damage/crit path, assists, defeat hooks, Secrecy consume.
 
-**Now wired** in `projectSystem.ts` + combat hooks (web + rebuilt APK).
+### Earlier passes (still in effect)
+- 34 registry statuses in generic parser
+- The Project + Hostage Scientist full system
+- Shared verbs: ignore_*, double_strike, consume_*, steal_buff, instakill, sacrifice, burn, etc.
+- Health Up / Imperial Approval / Ordered Fire / Blocked
+- Conquest scfc basics, Treasure sync
 
----
+### Note on snake_case effect tokens
+Tokens like `taunt`, `offense_down`, `stealth` already map via parser `dbTag` matching — not missing.
 
-## Status: what was linked this pass
+## Remaining limitations (honest)
+- Natural-language passives that don’t match the common “Whenever X: Y” / “allies gain +N Speed” templates still need hand hooks
+- Complex payout/contract/scum condition trackers (Bossk 15 hits, Embo pursuit counts, etc.) need dedicated counters beyond generic desc parsing
+- Some GL-specific ultimate charge / immunity passives remain niche
 
-### The Project system
-Registry: `The Project`, `The Project Complete`, `Hostage Scientist`  
-Runtime: stack tracking, thresholds, Authority instakill, Galen sacrifice, Bevel consume, Architect passives
-
-### Shared effect verbs now handled
-`double_strike` / `bonus_attack`, `ignore_taunt` / `ignore_stealth` / `ignore_defense` / `ignore_protection` / `ignore_foresight`, `consume_secrecy`, `consume_treasure`, `steal_buff`, `cooldown_decrease*`, `instakill` / `prevent_revive`, `sacrifice`, `burn` / `burn_all`, `crit_chance_up` / `crit_damage_up` / `evasion_up`, `max_health_reduction`, `swap_turn_meter`, `turn_meter_gain_ally`, faction filter includes Imperial Architects
-
-### Previously fixed
-34 registry statuses in generic parser; Health Up / Imperial Approval / Ordered Fire / Blocked; Treasure sync; scfc basics
-
----
-
-## Still remaining (leader/unique *passive* fidelity)
-
-Many `leader` / `unique` abilities still rely on empty `effects` + missing characterId hooks. Meta tags (`leader`, `unique`, `passive_boost`) are not combat verbs.
-
-High-count leftovers to keep wiring next:
-- Per-character unique/leader passives without hooks
-- Niche tokens (`save_ally`, `contract_leader`, `buff_gl_faction`, `mastery_passive`, …)
-
-Combat statuses claimed by actives are largely linked; **passive kit text** is the next bulk pass.
+Those are the next incremental targets; core status + Project + shared verbs + generic leader auras/whenever are linked in web + APK.

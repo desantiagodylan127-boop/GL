@@ -5,6 +5,7 @@ import { customAbilityHandlers, customSquadPassives, customDefeatHooks, customTu
   onArchitectDamaged, onArchitectBuffGained, onArchitectGainedDefenseUp,
   checkDoddLowHealthTaunt, consumeTreasure
 } from './combat/customKitLogic';
+import { installDescPassives, fireDescPassives, getDescAuraStatMods } from './combat/descPassiveSystem';
 
 // Anti-Loop Bounds
 const MAX_ASSIST_DEPTH = 10;
@@ -819,6 +820,14 @@ export function getModifiedStats(unit: CombatUnit, teamUnits?: CombatUnit[]): { 
   }
   // --- END PIRATE CORSAIR PAYOUT STATS ---
 
+  // Description-driven leader/unique auras
+  const aura = getDescAuraStatMods(unit);
+  offense = Math.round(offense * aura.offense);
+  defense = Math.round(defense * aura.defense);
+  critDamage += aura.critDamage;
+  potency += aura.potency;
+  critChance += aura.critChance;
+
   // Ensure stats don't drop below 0
   tenacity = Math.max(0, tenacity);
   potency = Math.max(0, potency);
@@ -1262,6 +1271,22 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
       if (name === 'Defense Up') onArchitectGainedDefenseUp(state, target);
     } finally {
       state.dynamicState.projectHookLock = false;
+    }
+  }
+  // Description-driven whenever-passives
+  if (!state.dynamicState?.descPassiveLock) {
+    if (!state.dynamicState) state.dynamicState = {};
+    state.dynamicState.descPassiveLock = true;
+    try {
+      if (!isDebuff) {
+        fireDescPassives(state, 'buff_gained', target, { statusName: name });
+        if (name === 'Secrecy') fireDescPassives(state, 'secrecy_gained', target);
+      } else {
+        fireDescPassives(state, 'debuff_gained', target, { statusName: name });
+        if (name === 'Burning') fireDescPassives(state, 'burning_gained', target);
+      }
+    } finally {
+      state.dynamicState.descPassiveLock = false;
     }
   }
   if (isDebuff && attacker && attacker.characterId === 'neyo') {
@@ -1780,6 +1805,8 @@ export function runDefeatHooks(state: CombatState, defeatedUnit: CombatUnit) {
         : null;
       onArchitectAllyDefeated(state, defeatedUnit, defeatAttacker);
       if (defeatAttacker) onArchitectDefeatedEnemy(state, defeatedUnit, defeatAttacker);
+      if (defeatAttacker) fireDescPassives(state, 'enemy_defeated', defeatAttacker);
+      fireDescPassives(state, 'ally_defeated', defeatedUnit);
     }
     
     if (attackerId) {
@@ -3255,6 +3282,7 @@ export function executeCombatAction(
   if (ability.type === 'special' && assistDepth === 0 && counterDepth === 0) {
      onSpecialAbilityUsed(state, attacker);
      onArchitectSpecialUsed(state, attacker);
+     fireDescPassives(state, 'special_used', attacker);
 
      // Thrawn Predicted logic for Spectre special abilities
      const isSpectre = checkHasTag(attacker, 'Spectre') || checkHasTag(attacker, 'Spectre / Rebel') || checkHasTag(attacker, 'Spectres') || ['general_hera', 'chopper', 'sabine_apprentice', 'zeb_nr', 'ezra_exile', 'huyang', 'ahsoka_tano_grey'].includes(attacker.characterId);
@@ -3883,8 +3911,20 @@ export function executeCombatAction(
     }
   });
 
-  
-  if (assistDepth > 0 || counterDepth > 0) {
+  if (assistDepth === 0 && counterDepth === 0) {
+    if (isCrit) fireDescPassives(state, 'crit', attacker);
+    if (finalDamage > 0) {
+      fireDescPassives(state, 'damage_dealt', attacker, {
+        statusName: target.statuses.some(s => s.name === 'Burning') ? 'Burning' : undefined
+      });
+      fireDescPassives(state, 'damage_taken', target);
+      if (target.hp > 0 && target.hp < target.maxHp * 0.5) {
+        fireDescPassives(state, 'ally_below_50', target);
+      }
+    }
+  }
+
+    if (assistDepth > 0 || counterDepth > 0) {
       if (attacker.tags.includes('Bad Batch') || checkHasTag(attacker, 'Bad Batch')) {
           const squad = attacker.team === 'player' ? state.playerTeam : state.enemyTeam;
           const tech = squad.find(u => u.characterId === 'tech_bb' && u.activeInBattle && u.hp > 0);
@@ -4424,6 +4464,7 @@ function parseAndApplyEffects(
         if (sec) {
           u.statuses = u.statuses.filter(s => s.name !== 'Secrecy');
           logBattleEvent(state, `🕶️ ${u.name} consumes Secrecy!`, 'buff');
+          fireDescPassives(state, 'secrecy_consumed', u);
         }
       });
     }
@@ -5687,7 +5728,7 @@ function triggerAssist(state: CombatState, attacker: CombatUnit, target: CombatU
   let eligible = [...aliveAllies];
   const effectLower = effectText.toLowerCase();
   
-  const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'knightfall'];
+  const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'knightfall', 'imperial architects', 'crimson dawn', 'corsair', 'death watch', 'bounty hunter', 'rogue one', 'rebel command'];
   
   let targetedFactions = factions.filter(fac => effectLower.includes(fac) || effectLower.includes(fac.replace(' ', '_')));
   if (targetedFactions.length > 0) {
@@ -5706,6 +5747,7 @@ function triggerAssist(state: CombatState, attacker: CombatUnit, target: CombatU
         const basic = ally.abilities.find(a => a.type === 'basic') || ally.abilities[0];
         logBattleEvent(state, `➡️ Assist: ${ally.name} strikes!`, 'info');
         executeCombatAction(state, ally.id, basic, target.id, undefined, idx + 1, 0);
+        fireDescPassives(state, 'assist', ally);
       }
     });
   } else {
@@ -5719,6 +5761,7 @@ function triggerAssist(state: CombatState, attacker: CombatUnit, target: CombatU
     const basic = chosen.abilities.find(a => a.type === 'basic') || chosen.abilities[0];
     logBattleEvent(state, `➡️ Assist: ${chosen.name} strikes!`, 'info');
     executeCombatAction(state, chosen.id, basic, target.id, undefined, 1, 0);
+    fireDescPassives(state, 'assist', chosen);
   }
 }
 
@@ -5777,6 +5820,8 @@ export function solveSimBattle(
 export function applySquadPassives(state: CombatState, teamToApply?: 'player' | 'enemy' | 'all') {
   // Expose an extensible layer for custom entire-squad passives
   customSquadPassives.forEach(hook => hook(state));
+  // Install description-parsed leader/unique passives (idempotent)
+  installDescPassives(state);
 
   const teams: ('player' | 'enemy')[] = teamToApply && teamToApply !== 'all' ? [teamToApply] : ['player', 'enemy'];
   
