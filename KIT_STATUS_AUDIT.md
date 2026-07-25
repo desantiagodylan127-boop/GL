@@ -1,25 +1,41 @@
 # Galactic Legends — Kit / Status Link Audit
 
-## Status: FIXED (web + APK)
+## The Project — YES, fully defined in kits
 
-Working in-battle systems were never treated as broken: Combined Arms, Momentum, Lockdown, Riot Control, Pathfinder, Fatigued, Order 66.
+From Imperial Architect ability text, The Project is:
 
-### What was fixed
+- **Team-wide stack** shared by Imperial Architects (not per-unit only)
+- **Gains** from ability text (“Gain N stacks of The Project”)
+- **Complete at 25** → unlocks Piett’s Authority By All Means; team Offense/Defense Up; Krennic/Dodd thresholds
+- **Milestones 10/15/20** → Krennic lead Protection recover; Engineer CD −1
+- **Passives**: specials/defeats/Galen damage/buffs/Taunt hits advance stacks
+- **Consume**: Bevel Superlaser (up to 5); Authority consumes all
+- **Hostage Scientist**: Galen start-of-battle undispellable buff; damage/defeat advance Project
 
-1. **Health Up, Imperial Approval, Ordered Fire, Blocked** added to `STATUS_DEFINITIONS`
-2. **Generic parser** in `parseAndApplyEffects` now applies the previously unwired registry statuses when they appear in ability `effects[]` (buffs + debuffs), including AoE variants (`*_aoe`)
-3. **Long-duration / stacking** statuses use duration 99 where appropriate (Last Hope, Endless Legion, Contracts, etc.)
-4. **Expose → Exposed** and **Blocked → Ability Block** aliases normalized on apply
-5. **Imperial Approval** journey script uses `applyStatus` instead of a raw status push
-6. **Pellaeon Ordered Fire** basic now includes the `Ordered Fire` effect token
-7. **Treasure** alt system syncs the `Treasure` status stacks for UI
-8. **Conquest `scfc*`** basics given real descriptions + effects
+**Now wired** in `projectSystem.ts` + combat hooks (web + rebuilt APK).
 
-### Previously missing (now in generic apply lists)
+---
 
-Accuracy Up, Analysis, Armor Shred, Blaze Of Glory, Bounty, Collector, Contract, Corruption, Critical Chance Down, Dark Maelstrom, Debt, Elusive, Endless Legion, Explosive Charge, Foil, Hostage, Impending Doom, Imperial Contract, Infested, Information Broker, Insight, Intel, Last Hope, Raid Mark, Reanimated, Resolve, Rule of Two, Secrecy, Stagger, Tactical Data, Tortured, Unconventional Tactics, Unlimited Power, Veteran Orders, Entrenched, Payout (+ Momentum / Combined Arms also effect-tag applicable)
+## Status: what was linked this pass
 
-### Remaining follow-ups (not blockers for this fix)
+### The Project system
+Registry: `The Project`, `The Project Complete`, `Hostage Scientist`  
+Runtime: stack tracking, thresholds, Authority instakill, Galen sacrifice, Bevel consume, Architect passives
 
-- Label-only effect tokens (`debuff`, `leader`, `The Project`, …) still need custom handlers or migration to `aiTags` for full kit fidelity beyond status application
-- Leader/unique passives with empty `effects` still rely on characterId hooks / squad passives
+### Shared effect verbs now handled
+`double_strike` / `bonus_attack`, `ignore_taunt` / `ignore_stealth` / `ignore_defense` / `ignore_protection` / `ignore_foresight`, `consume_secrecy`, `consume_treasure`, `steal_buff`, `cooldown_decrease*`, `instakill` / `prevent_revive`, `sacrifice`, `burn` / `burn_all`, `crit_chance_up` / `crit_damage_up` / `evasion_up`, `max_health_reduction`, `swap_turn_meter`, `turn_meter_gain_ally`, faction filter includes Imperial Architects
+
+### Previously fixed
+34 registry statuses in generic parser; Health Up / Imperial Approval / Ordered Fire / Blocked; Treasure sync; scfc basics
+
+---
+
+## Still remaining (leader/unique *passive* fidelity)
+
+Many `leader` / `unique` abilities still rely on empty `effects` + missing characterId hooks. Meta tags (`leader`, `unique`, `passive_boost`) are not combat verbs.
+
+High-count leftovers to keep wiring next:
+- Per-character unique/leader passives without hooks
+- Niche tokens (`save_ally`, `contract_leader`, `buff_gl_faction`, `mastery_passive`, …)
+
+Combat statuses claimed by actives are largely linked; **passive kit text** is the next bulk pass.

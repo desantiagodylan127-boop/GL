@@ -149,5 +149,10 @@ export const STATUS_DEFINITIONS: Record<string, {
     'Imperial Approval': { name: 'Imperial Approval', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: { offense: 1.15, tenacity: 0.15 }, desc: 'Emperor Palpatine holds Imperial Approval. Imperial allies recover Protection when enemies fall.' },
     'Ordered Fire': { name: 'Ordered Fire', type: 'buff', stackLimit: 1, flags: [], statModifiers: { critChance: 0.1 }, desc: 'Coordinated volley. This unit has issued or received Ordered Fire and fights with heightened coordination.' },
     // Alias recognized by AI / logs (canonical status remains Ability Block)
-    'Blocked': { name: 'Blocked', type: 'debuff', stackLimit: 1, flags: ['prevent_special'], statModifiers: {}, desc: 'Alias of Ability Block. Cannot use Special or Ultimate abilities.' }
+    'Blocked': { name: 'Blocked', type: 'debuff', stackLimit: 1, flags: ['prevent_special'], statModifiers: {}, desc: 'Alias of Ability Block. Cannot use Special or Ultimate abilities.' },
+
+    // Imperial Architects — The Project
+    'The Project': { name: 'The Project', type: 'buff', stackLimit: 99, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Team construction progress toward the Imperial superweapon. Reaches Complete at 25 stacks. Cannot be dispelled, copied, or prevented.' },
+    'The Project Complete': { name: 'The Project Complete', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'The Project has reached 25 stacks. Authority By All Means is unlocked.' },
+    'Hostage Scientist': { name: 'Hostage Scientist', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Galen Erso is held as the Hostage Scientist. Cannot be dispelled. Damaging him advances The Project.' }
 };

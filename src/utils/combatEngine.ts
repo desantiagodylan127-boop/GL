@@ -1,6 +1,10 @@
 import { CombatUnit, CombatStatus, Ability, Character, PlayerCharacterProgress, SaveState } from '../types';
 import { INITIAL_CHARACTERS } from '../data/characters';
-import { customAbilityHandlers, customSquadPassives, customDefeatHooks, customTurnStartHooks, activateCorsairPayout } from './combat/customKitLogic';
+import { customAbilityHandlers, customSquadPassives, customDefeatHooks, customTurnStartHooks, activateCorsairPayout,
+  handleProjectAbilityEffects, onArchitectSpecialUsed, onArchitectAllyDefeated, onArchitectDefeatedEnemy,
+  onArchitectDamaged, onArchitectBuffGained, onArchitectGainedDefenseUp,
+  checkDoddLowHealthTaunt, consumeTreasure
+} from './combat/customKitLogic';
 
 // Anti-Loop Bounds
 const MAX_ASSIST_DEPTH = 10;
@@ -1250,6 +1254,16 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
   target.statuses.push({ name, duration, isDebuff, count });
   logBattleEvent(state, `${target.name} gained ${name} (${duration} turns)`, isDebuff ? 'debuff' : 'buff');
   if (name === 'Fear') onFearApplied(state, target);
+  if (!isDebuff && !state.dynamicState?.projectHookLock) {
+    if (!state.dynamicState) state.dynamicState = {};
+    state.dynamicState.projectHookLock = true;
+    try {
+      onArchitectBuffGained(state, target, name);
+      if (name === 'Defense Up') onArchitectGainedDefenseUp(state, target);
+    } finally {
+      state.dynamicState.projectHookLock = false;
+    }
+  }
   if (isDebuff && attacker && attacker.characterId === 'neyo') {
      if (!hasStatusFlag(attacker, 'prevent_tm_gain')) {
         attacker.turnMeter = Math.min(100, attacker.turnMeter + 5);
@@ -1758,6 +1772,14 @@ export function runDefeatHooks(state: CombatState, defeatedUnit: CombatUnit) {
     let attackerId = null;
     if (lastEvent && lastEvent.type === 'damage' && lastEvent.targetId === defeatedUnit.id) {
        attackerId = lastEvent.sourceId;
+    }
+
+    {
+      const defeatAttacker = attackerId
+        ? (state.playerTeam.find(u => u.id === attackerId) || state.enemyTeam.find(u => u.id === attackerId) || null)
+        : null;
+      onArchitectAllyDefeated(state, defeatedUnit, defeatAttacker);
+      if (defeatAttacker) onArchitectDefeatedEnemy(state, defeatedUnit, defeatAttacker);
     }
     
     if (attackerId) {
@@ -2875,7 +2897,7 @@ export function decrementStatusDurations(state: CombatState, unit: CombatUnit) {
 }
 
 // Find appropriate targets
-export function grabValidTargets(unit: CombatUnit, state: CombatState): CombatUnit[] {
+export function grabValidTargets(unit: CombatUnit, state: CombatState, ability?: Ability): CombatUnit[] {
   const oppTeam = unit.team === 'player' ? state.enemyTeam : state.playerTeam;
   let alive = oppTeam.filter(u => u.activeInBattle && u.hp > 0);
 
@@ -2900,12 +2922,16 @@ export function grabValidTargets(unit: CombatUnit, state: CombatState): CombatUn
      }
   }
 
+  const effects = (ability?.effects || []).map(e => e.toLowerCase());
+  const ignoreTaunt = effects.some(e => e.includes('ignore_taunt') || e.includes('ignores_taunt'));
+  const ignoreStealth = effects.some(e => e.includes('ignore_stealth'));
+
   // Check for Taunting or Marked enemies (Marked overrides Stealth, Taunt doesn't technically but Marked acts as forced taunt)
   const forcedTargets = alive.filter(u => hasStatusFlag(u, 'marked'));
-  if (forcedTargets.length > 0) return forcedTargets;
+  if (forcedTargets.length > 0 && !ignoreTaunt) return forcedTargets;
 
   const taunts = alive.filter(u => hasStatusFlag(u, 'taunt'));
-  if (taunts.length > 0) {
+  if (taunts.length > 0 && !ignoreTaunt) {
       let valid = [...taunts];
       if (unit.characterId === 'barriss_offee') {
          const investigated = alive.filter(u => u.statuses.some(s => s.name === 'Investigation'));
@@ -2918,7 +2944,7 @@ export function grabValidTargets(unit: CombatUnit, state: CombatState): CombatUn
 
   // Standard targets (filter out stealth unless all are stealth)
   const isSqueakyPayout = unit.characterId === 'navrokk' && unit.statuses.some(s => s.name === 'Payout');
-  if (isSqueakyPayout) {
+  if (isSqueakyPayout || ignoreStealth) {
      return alive;
   }
   const nonStealthes = alive.filter(u => !hasStatusFlag(u, 'stealth'));
@@ -2945,6 +2971,13 @@ export function executeRevive(state: CombatState, unit: CombatUnit, healer: Comb
 
 export function checkDefeat(state: CombatState, target: CombatUnit, attacker: CombatUnit | null) {
   if (target.hp <= 0 && target.activeInBattle) {
+    if (target.preventRevive || target.dynamicState?.preventRevive) {
+      target.activeInBattle = false;
+      target.hp = 0;
+      logBattleEvent(state, `💀 ${target.name} is permanently defeated (cannot be revived)!`, 'death');
+      runDefeatHooks(state, target);
+      return;
+    }
     if (customDefeatHooks[target.characterId]) {
       customDefeatHooks[target.characterId](state, target, attacker);
       if (target.hp > 0 || !target.activeInBattle) return; // Prevented defeat
@@ -3153,9 +3186,10 @@ export function executeCombatAction(
 
   // Validate Target (Taunt / Stealth check) only for explicit player actions (depth 0)
   if (assistDepth === 0 && counterDepth === 0) {
-     const validTargets = grabValidTargets(attacker, state);
+     const validTargets = grabValidTargets(attacker, state, ability);
      const isValid = validTargets.some(t => t.id === target?.id);
-     if (!isValid && validTargets.length > 0) {
+     const ignoresTaunt = ability.effects.some(e => /ignore_taunt|ignores_taunt/i.test(e));
+     if (!isValid && validTargets.length > 0 && !ignoresTaunt) {
         // Reroute to a valid target (e.g. forced Taunt)
         target = validTargets[0];
      }
@@ -3220,6 +3254,7 @@ export function executeCombatAction(
   // 501st Special Ability Used trigger hook
   if (ability.type === 'special' && assistDepth === 0 && counterDepth === 0) {
      onSpecialAbilityUsed(state, attacker);
+     onArchitectSpecialUsed(state, attacker);
 
      // Thrawn Predicted logic for Spectre special abilities
      const isSpectre = checkHasTag(attacker, 'Spectre') || checkHasTag(attacker, 'Spectre / Rebel') || checkHasTag(attacker, 'Spectres') || ['general_hera', 'chopper', 'sabine_apprentice', 'zeb_nr', 'ezra_exile', 'huyang', 'ahsoka_tano_grey'].includes(attacker.characterId);
@@ -3307,7 +3342,8 @@ export function executeCombatAction(
       // Blind: attacks miss
       const isBlind = attacker.statuses.some(s => s.name === 'Blind');
       const isSqueakyPayout = attacker.characterId === 'navrokk' && attacker.statuses.some(s => s.name === 'Payout');
-      const hasForesight = isSqueakyPayout ? false : hasStatusFlag(currentTarget, 'evade_next');
+      const ignoreForesight = ability.effects.some(e => /ignore_foresight/i.test(e));
+      const hasForesight = (isSqueakyPayout || ignoreForesight) ? false : hasStatusFlag(currentTarget, 'evade_next');
       
       if (hasForesight && ability.type !== 'ultimate') {
         logBattleEvent(state, `💨 ${currentTarget.name} used FORESIGHT to evade the attack!`, 'info');
@@ -3374,6 +3410,9 @@ export function executeCombatAction(
           // Armor Mitigation
           // tarStats.defense is already modified by Defense Up/Down/Shattered in getModifiedStats
           let targetDefense = tarStats.defense;
+          if (ability.effects.some(e => /ignore_defense|penetrate_shield|defense_penetration/i.test(e))) {
+             targetDefense = 0;
+          }
           if (attacker.characterId === 'pendewqell' && attacker.statuses.some(s => s.name === 'Payout')) {
              targetDefense *= 0.65; // ignore 35% defense
           }
@@ -3473,8 +3512,13 @@ export function executeCombatAction(
         let protectionDamage = 0;
 
         if (currentTarget.protection > 0) {
-          protectionDamage = Math.min(currentTarget.protection, currentFinalDamage);
-          healthDamage = currentFinalDamage - protectionDamage;
+          if (ability.effects.some(e => /ignore_protection/i.test(e))) {
+            healthDamage = currentFinalDamage;
+            protectionDamage = 0;
+          } else {
+            protectionDamage = Math.min(currentTarget.protection, currentFinalDamage);
+            healthDamage = currentFinalDamage - protectionDamage;
+          }
         } else {
           healthDamage = currentFinalDamage;
         }
@@ -3625,6 +3669,8 @@ export function executeCombatAction(
         if (healthDamage > 0) {
           const preHp = currentTarget.hp;
           currentTarget.hp = Math.max(0, currentTarget.hp - healthDamage);
+          onArchitectDamaged(state, currentTarget, healthDamage);
+          checkDoddLowHealthTaunt(state, currentTarget);
 
       if (currentTarget.statuses.some(s => s.name === 'Pursued')) {
           const oppSquad = attacker.team === 'player' ? state.playerTeam : state.enemyTeam;
@@ -3935,6 +3981,21 @@ export function executeCombatAction(
 
   // Parse abilities descriptions dynamically to inject effects securely
   parseAndApplyEffects(state, attacker, target, ability, isCrit, targetAlly, assistDepth, counterDepth);
+
+  // Imperial Architects — The Project stack gains/consumes from ability text
+  if (assistDepth === 0 && counterDepth === 0) {
+    handleProjectAbilityEffects(state, attacker, ability);
+  }
+
+  // Shared effect verbs: double_strike / bonus_attack
+  if (assistDepth === 0 && counterDepth === 0 && target.activeInBattle && target.hp > 0 && attacker.hp > 0) {
+    if (ability.effects.some(e => /double_strike|bonus_attack/i.test(e))) {
+      const basic = attacker.abilities.find(a => a.type === 'basic') || ability;
+      const follow = { ...basic, id: basic.id + '_followup', effects: basic.effects.filter(e => !/double_strike|bonus_attack|assist/i.test(e)) };
+      logBattleEvent(state, `⚔️ ${attacker.name} strikes again!`, 'info');
+      executeCombatAction(state, attacker.id, follow, target.id, undefined, assistDepth + 1, counterDepth);
+    }
+  }
   
   if (isCrit && state.conquestDataDisks?.includes('dd_volatile_accelerator') && attacker.team === 'player' && target.activeInBattle) {
      applyStatus(state, target, 'Damage Over Time', 2, true, attacker, 2);
@@ -4106,7 +4167,7 @@ function parseAndApplyEffects(
   } else if (isAllies || isRandomAlly) {
     globalTargetAllies = allies.filter(a => a.activeInBattle && a.hp > 0);
     
-    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius'];
+    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius', 'imperial architects', 'crimson dawn', 'corsair', 'bad batch', 'wolfpack', 'coruscant guard'];
     factions.forEach(fac => {
        if (allEffectsString.includes(fac) || allEffectsString.includes(fac.replace(' ', '_'))) {
           globalTargetAllies = globalTargetAllies.filter(a => checkHasTag(a, fac));
@@ -4123,7 +4184,7 @@ function parseAndApplyEffects(
   let globalTargetEnemies = [target];
   if (isEnemies) {
     globalTargetEnemies = enemies.filter(e => e.activeInBattle && e.hp > 0);
-    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius'];
+    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius', 'imperial architects', 'crimson dawn', 'corsair', 'bad batch', 'wolfpack', 'coruscant guard'];
     factions.forEach(fac => {
        const hasFactionEnemyMatch = allEffectsString.includes(`${fac} enemies`) || allEffectsString.includes(`${fac.replace(' ', '_')} enemies`);
        if (hasFactionEnemyMatch) {
@@ -4150,7 +4211,8 @@ function parseAndApplyEffects(
       'Council Guidance', 'Pathfinder', 'Insight', 'Intel', 'Impending Doom', 'Tactical Data',
       'Tactical Advantage', 'Collector', 'Bounty', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
       'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Secrecy', 'Payout',
-      'Imperial Approval', 'Information Broker', 'Corruption', 'Debt', 'Dossier', 'Guardian\'s Resolve'
+      'Imperial Approval', 'Information Broker', 'Corruption', 'Debt', 'Dossier', 'Guardian\'s Resolve',
+      'The Project', 'The Project Complete', 'Hostage Scientist'
     ]);
 
     // Debuffs
@@ -4202,7 +4264,7 @@ function parseAndApplyEffects(
       'Tactical Data', 'Tactical Advantage', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
       'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Unconventional Tactics',
       'Imperial Approval', 'Ordered Fire', 'Council Guidance', "Guardian's Resolve", 'Inspired',
-      'Whiteout', 'Ultimate Stance', 'Protect the Child'
+      'Whiteout', 'Ultimate Stance', 'Protect the Child', 'The Project', 'The Project Complete', 'Hostage Scientist'
     ].forEach(bf => {
       const bfTag = bf.toLowerCase().replace(/ /g, '_');
       if (effect.includes(bf) || effect.includes(bfTag)) {
@@ -4342,7 +4404,7 @@ function parseAndApplyEffects(
             logBattleEvent(state, `✨ All Buffs Dispelled from ${e.name}`, 'info');
          });
       }
-      if (effectLower.includes('cleanse_ally') || effectLower.includes('cleanse_all') || effectLower.includes('debuffs')) {
+      if (effectLower.includes('cleanse_ally') || effectLower.includes('cleanse_all') || effectLower.includes('debuffs') || effectLower.includes('self_cleanse') || effectLower.includes('debuff_dispel')) {
          targetAllies.forEach(a => {
             a.statuses = a.statuses.filter(s => {
                const def = STATUS_DEFINITIONS[s.name];
@@ -4352,6 +4414,121 @@ function parseAndApplyEffects(
             });
             logBattleEvent(state, `✨ All Debuffs Cleansed from ${a.name}`, 'heal');
          });
+      }
+    }
+
+    // consume_secrecy
+    if (effectLower.includes('consume_secrecy')) {
+      targetAllies.concat([attacker]).forEach(u => {
+        const sec = u.statuses.find(s => s.name === 'Secrecy');
+        if (sec) {
+          u.statuses = u.statuses.filter(s => s.name !== 'Secrecy');
+          logBattleEvent(state, `🕶️ ${u.name} consumes Secrecy!`, 'buff');
+        }
+      });
+    }
+
+    // consume_treasure
+    if (effectLower.includes('consume_treasure')) {
+      const m = ability.desc.match(/consume\s+(\d+)\s+treasure/i) || ability.desc.match(/(\d+)\s+treasure/i);
+      const amt = m ? parseInt(m[1], 10) : 1;
+      consumeTreasure(attacker, amt, state);
+    }
+
+    // steal_buff / steal_buff_all
+    if (effectLower.includes('steal_buff')) {
+      const victims = effectLower.includes('all') ? targetEnemies : [target];
+      victims.forEach(e => {
+        const stealable = e.statuses.filter(s => {
+          const def = STATUS_DEFINITIONS[s.name];
+          return def && def.type === 'buff' && !(def.flags || []).includes('prevent_copy');
+        });
+        if (stealable.length) {
+          const stolen = effectLower.includes('all') ? stealable : [stealable[0]];
+          stolen.forEach(s => {
+            e.statuses = e.statuses.filter(x => x !== s);
+            applyStatus(state, attacker, s.name, s.duration, false, attacker, s.count || 1);
+          });
+          logBattleEvent(state, `🦹 ${attacker.name} stole buffs from ${e.name}!`, 'buff');
+        }
+      });
+    }
+
+    // cooldown_decrease / cooldown_reduction variants
+    if (effectLower.includes('cooldown_decrease') || effectLower.includes('cooldown_manipulation') || effectLower.includes('cooldown_reset')) {
+      const pool = effectLower.includes('aoe') || effectLower.includes('all')
+        ? allies.filter(a => a.activeInBattle && a.hp > 0)
+        : [attacker];
+      pool.forEach(a => {
+        Object.keys(a.cooldowns).forEach(k => {
+          if (effectLower.includes('reset')) a.cooldowns[k] = 0;
+          else if (a.cooldowns[k] > 0) a.cooldowns[k] = Math.max(0, a.cooldowns[k] - 1);
+        });
+      });
+      logBattleEvent(state, `⏳ Cooldowns adjusted for ${attacker.name}'s allies!`, 'buff');
+    }
+
+    // instakill / instant_defeat / defeat_enemy / prevent_revive
+    if (effectLower.includes('instakill') || effectLower.includes('instant_defeat') || effectLower.includes('defeat_enemy')) {
+      // Piett Authority handled by custom handler; generic: deal lethal if not prevented
+      if (ability.id !== 'piett_f_special_3') {
+        target.hp = 0;
+        if (effectLower.includes('prevent_revive') || effectLower.includes('unrevivable')) {
+          target.preventRevive = true;
+        }
+        logBattleEvent(state, `💀 ${target.name} is defeated outright!`, 'death', target.id, attacker.id);
+        runDefeatHooks(state, target);
+      }
+    }
+
+    if (effectLower.includes('prevent_revive') || effectLower.includes('unrevivable')) {
+      target.preventRevive = true;
+    }
+
+    // sacrifice (non-Galen generic)
+    if (effectLower.includes('sacrifice') && ability.id !== 'galen_special_2') {
+      attacker.hp = 0;
+      logBattleEvent(state, `💔 ${attacker.name} sacrifices themselves!`, 'death');
+      runDefeatHooks(state, attacker);
+    }
+
+    // burn / burn_all → Burning status
+    if (effect === 'burn' || effectLower === 'burn_all') {
+      const victims = effectLower.includes('all') ? targetEnemies : [target];
+      victims.forEach(e => applyStatus(state, e, 'Burning', 2, true, attacker));
+    }
+
+    // Stat-up aliases that aren't Title Case statuses
+    if (effectLower === 'crit_chance_up') applyStatus(state, attacker, 'Critical Chance Up', 2, false, attacker);
+    if (effectLower === 'crit_damage_up' || effectLower === 'crit_damage') applyStatus(state, attacker, 'Critical Damage Up', 2, false, attacker);
+    if (effectLower === 'crit_avoidance_up' || effectLower === 'evasion_up') applyStatus(state, attacker, 'Foresight', 1, false, attacker);
+    if (effectLower === 'accuracy_up' || effect === 'Accuracy Up') applyStatus(state, attacker, 'Accuracy Up', 2, false, attacker);
+
+    // max_health_reduction
+    if (effectLower.includes('max_health_reduction')) {
+      target.maxHp = Math.max(1, Math.round(target.maxHp * 0.9));
+      target.hp = Math.min(target.hp, target.maxHp);
+      logBattleEvent(state, `📉 ${target.name} Max Health reduced!`, 'debuff');
+    }
+
+    // swap_turn_meter
+    if (effectLower.includes('swap_turn_meter')) {
+      const tmp = attacker.turnMeter;
+      attacker.turnMeter = target.turnMeter;
+      target.turnMeter = tmp;
+      logBattleEvent(state, `🔄 Turn Meter swapped between ${attacker.name} and ${target.name}!`, 'info');
+    }
+
+    // turn_meter_gain_ally — grant TM to a non-self ally
+    if (effectLower.includes('turn_meter_gain_ally')) {
+      const m = ability.desc.match(/(\d+)%\s*turn meter/i);
+      const pct = m ? parseInt(m[1], 10) : 5;
+      const ally = explicitTargetAlly && explicitTargetAlly.id !== attacker.id
+        ? explicitTargetAlly
+        : allies.filter(a => a.id !== attacker.id && a.activeInBattle && a.hp > 0)[0];
+      if (ally && !hasStatusFlag(ally, 'prevent_tm_gain')) {
+        ally.turnMeter = Math.min(100, ally.turnMeter + pct);
+        logBattleEvent(state, `📈 ${ally.name} gains ${pct}% Turn Meter!`, 'buff');
       }
     }
   });
