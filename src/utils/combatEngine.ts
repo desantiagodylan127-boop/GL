@@ -32,7 +32,6 @@ import {
   onDengarNoEscapeCounter,
   onContractMiss,
   hasImperialContract,
-  taxZuckussTrackedTM,
 } from './combat/imperialContractSystem';
 import {
   installHuttContracts,
@@ -47,7 +46,6 @@ import {
   tryHuttCartelDeathSave,
   filterRottaUntargetable,
   checkRottaLastAllyDefeat,
-  blockBribedTMGain,
 } from './combat/huttContractSystem';
 
 // Anti-Loop Bounds
