@@ -280,7 +280,7 @@ export const NEW_REPUBLIC_CHARACTERS: Character[] = [
     combatStyle: 'Balanced tactics and strategy',
     baseStats: { speed: 155, hp: 50000, protection: 50000, offense: 4500, defense: 6000, critChance: 0.3, critDamage: 1.5, tenacity: 0.6, potency: 0.5 },
     abilities: [
-      makeAbility('pellaeon_basic', 'Ordered Fire', 'basic', 0, 'Deal Physical Damage. Random ally assists.', ['damage_single', 'assist'], ['offensive']),
+      makeAbility('pellaeon_basic', 'Ordered Fire', 'basic', 0, 'Deal Physical Damage. Gain Ordered Fire (2 turns). Random ally assists.', ['damage_single', 'Ordered Fire', 'assist'], ['offensive']),
       makeAbility('pellaeon_special_1', 'Fleet Coordination', 'special', 3, 'All allies gain Speed Up (2 turns) and recover 10% Protection.', ['Speed Up', 'heal_ally'], ['defensive']),
       makeAbility('pellaeon_special_2', 'Strategic Relay', 'special', 4, 'Target ally gains Bonus Turn. Reduce cooldowns by 1.', ['bonus_turn'], ['defensive']),
       makeAbility('pellaeon_leader', 'Last Admiral', 'leader', 0, 'Imperial Remnant allies gain +20 Speed and +20% Defense. Whenever allies gain Bonus Turns: Recover 2% Protection.', ['heal_ally'], []),

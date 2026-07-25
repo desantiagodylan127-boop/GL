@@ -1,6 +1,52 @@
 import { CombatUnit, CombatStatus, Ability, Character, PlayerCharacterProgress, SaveState } from '../types';
 import { INITIAL_CHARACTERS } from '../data/characters';
-import { customAbilityHandlers, customSquadPassives, customDefeatHooks, customTurnStartHooks, activateCorsairPayout } from './combat/customKitLogic';
+import { customAbilityHandlers, customSquadPassives, customDefeatHooks, customTurnStartHooks, activateCorsairPayout,
+  handleProjectAbilityEffects, onArchitectSpecialUsed, onArchitectAllyDefeated, onArchitectDefeatedEnemy,
+  onArchitectDamaged, onArchitectBuffGained, onArchitectGainedDefenseUp,
+  checkDoddLowHealthTaunt, consumeTreasure
+} from './combat/customKitLogic';
+import { installDescPassives, fireDescPassives, getDescAuraStatMods } from './combat/descPassiveSystem';
+import {
+  installKitConditions,
+  onKitDamageTaken,
+  onKitAbilityUsed,
+  onKitDebuffInflicted,
+  onKitTurnStart,
+  tryEndlessLegionSave,
+  checkEwokTraps,
+  filterUntargetable,
+  onLastHopeGained,
+  onKitAssistOrOutOfTurn,
+  getKitIgnoreDefensePct,
+  kitDebuffsCannotResist,
+} from './combat/kitConditionSystem';
+import {
+  installImperialContract,
+  onImperialContractDamaged,
+  onImperialContractBelow50,
+  onImperialContractDefeated,
+  getImperialContractDamageMods,
+  onImperialContractAttack,
+  resolveImperialContractAbilityExtras,
+  isImperialContractGatedStatus,
+  onDengarNoEscapeCounter,
+  onContractMiss,
+  hasImperialContract,
+} from './combat/imperialContractSystem';
+import {
+  installHuttContracts,
+  onHuttDebuffInflicted,
+  onHuttEnemyDefeated,
+  markDebuffsOnDeath,
+  onHuttEnemyBelow50,
+  getHuttBribedDamageBonus,
+  onBribedEnemyAttack,
+  onCartelRecovery,
+  onHuttAbilityUsed,
+  tryHuttCartelDeathSave,
+  filterRottaUntargetable,
+  checkRottaLastAllyDefeat,
+} from './combat/huttContractSystem';
 
 // Anti-Loop Bounds
 const MAX_ASSIST_DEPTH = 10;
@@ -815,6 +861,14 @@ export function getModifiedStats(unit: CombatUnit, teamUnits?: CombatUnit[]): { 
   }
   // --- END PIRATE CORSAIR PAYOUT STATS ---
 
+  // Description-driven leader/unique auras
+  const aura = getDescAuraStatMods(unit);
+  offense = Math.round(offense * aura.offense);
+  defense = Math.round(defense * aura.defense);
+  critDamage += aura.critDamage;
+  potency += aura.potency;
+  critChance += aura.critChance;
+
   // Ensure stats don't drop below 0
   tenacity = Math.max(0, tenacity);
   potency = Math.max(0, potency);
@@ -831,6 +885,8 @@ export function hasStatusFlag(unit: CombatUnit, flag: string): boolean {
        return true;
     }
   }
+
+  if (flag === 'prevent_tm_gain' && unit.dynamicState?.forcePreventTM) return true;
 
   return unit.statuses.some(s => {
     const def = STATUS_DEFINITIONS[s.name];
@@ -1107,6 +1163,7 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
 
   // Potency/Tenacity Roll for Debuffs
   if (isDebuff && attacker && name !== 'Order 66' && name !== 'Imperial Decree') {
+    if (!kitDebuffsCannotResist(attacker)) {
     const attStats = getModifiedStats(attacker, attacker.team === 'player' ? state.playerTeam : state.enemyTeam);
     const tarStats = getModifiedStats(target, target.team === 'player' ? state.playerTeam : state.enemyTeam);
     const resistChance = Math.min(0.85, Math.max(0.15, tarStats.tenacity - attStats.potency));
@@ -1129,6 +1186,7 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
         applyStatus(state, target, 'Purge', 3, true, attacker, 1);
       }
       return;
+    }
     }
   }
 
@@ -1195,6 +1253,9 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
          applyStatus(state, target, 'Marked', 2, true, attacker, 1);
          logBattleEvent(state, `💀 ORDER 66 EXECUTED on ${target.name}!`, 'debuff');
       }
+
+      if (isDebuff && attacker) onKitDebuffInflicted(state, attacker, target, name);
+      if (!isDebuff && name === 'Last Hope' && countGained > 0) onLastHopeGained(state, target);
       
       return;
     }
@@ -1243,6 +1304,8 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
           logBattleEvent(state, `🛰️ Forward Observer: Neyo inflicts a debuff! Gains 5% Turn Meter!`, 'buff');
        }
     }
+    if (isDebuff && attacker) onKitDebuffInflicted(state, attacker, target, name);
+    if (!isDebuff && name === 'Last Hope') onLastHopeGained(state, target);
     return;
   }
 
@@ -1250,6 +1313,32 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
   target.statuses.push({ name, duration, isDebuff, count });
   logBattleEvent(state, `${target.name} gained ${name} (${duration} turns)`, isDebuff ? 'debuff' : 'buff');
   if (name === 'Fear') onFearApplied(state, target);
+  if (!isDebuff && !state.dynamicState?.projectHookLock) {
+    if (!state.dynamicState) state.dynamicState = {};
+    state.dynamicState.projectHookLock = true;
+    try {
+      onArchitectBuffGained(state, target, name);
+      if (name === 'Defense Up') onArchitectGainedDefenseUp(state, target);
+    } finally {
+      state.dynamicState.projectHookLock = false;
+    }
+  }
+  // Description-driven whenever-passives
+  if (!state.dynamicState?.descPassiveLock) {
+    if (!state.dynamicState) state.dynamicState = {};
+    state.dynamicState.descPassiveLock = true;
+    try {
+      if (!isDebuff) {
+        fireDescPassives(state, 'buff_gained', target, { statusName: name });
+        if (name === 'Secrecy') fireDescPassives(state, 'secrecy_gained', target);
+      } else {
+        fireDescPassives(state, 'debuff_gained', target, { statusName: name });
+        if (name === 'Burning') fireDescPassives(state, 'burning_gained', target);
+      }
+    } finally {
+      state.dynamicState.descPassiveLock = false;
+    }
+  }
   if (isDebuff && attacker && attacker.characterId === 'neyo') {
      if (!hasStatusFlag(attacker, 'prevent_tm_gain')) {
         attacker.turnMeter = Math.min(100, attacker.turnMeter + 5);
@@ -1564,6 +1653,20 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
        }
     }
   }
+
+  // Kit condition trackers (BH Payout / Aurra Contract Broker)
+  if (isDebuff && attacker) {
+    onKitDebuffInflicted(state, attacker, target, name);
+    onHuttDebuffInflicted(state, attacker, target, name);
+  }
+
+  // Last Hope / Ewok Taunt traps
+  if (!isDebuff && name === 'Last Hope') {
+    onLastHopeGained(state, target);
+  }
+  if (!isDebuff && name === 'Taunt') {
+    checkEwokTraps(state, 'enemy_taunt', target);
+  }
 }
 
 export function onDossierReachedFive(state: CombatState, target: CombatUnit, attacker: CombatUnit | null) {
@@ -1758,6 +1861,18 @@ export function runDefeatHooks(state: CombatState, defeatedUnit: CombatUnit) {
     let attackerId = null;
     if (lastEvent && lastEvent.type === 'damage' && lastEvent.targetId === defeatedUnit.id) {
        attackerId = lastEvent.sourceId;
+    }
+
+    {
+      const defeatAttacker = attackerId
+        ? (state.playerTeam.find(u => u.id === attackerId) || state.enemyTeam.find(u => u.id === attackerId) || null)
+        : null;
+      onArchitectAllyDefeated(state, defeatedUnit, defeatAttacker);
+      if (defeatAttacker) onArchitectDefeatedEnemy(state, defeatedUnit, defeatAttacker);
+      if (defeatAttacker) fireDescPassives(state, 'enemy_defeated', defeatAttacker);
+      fireDescPassives(state, 'ally_defeated', defeatedUnit);
+      onImperialContractDefeated(state, defeatedUnit, defeatAttacker);
+      onHuttEnemyDefeated(state, defeatedUnit, defeatAttacker);
     }
     
     if (attackerId) {
@@ -2130,6 +2245,8 @@ function processTurnPassivesStart(state: CombatState, unit: CombatUnit) {
   if (customTurnStartHooks[unit.characterId]) {
      customTurnStartHooks[unit.characterId](state, unit);
   }
+
+  onKitTurnStart(state, unit);
 
   // Cooldown decrement
   Object.keys(unit.cooldowns).forEach(key => {
@@ -2875,9 +2992,11 @@ export function decrementStatusDurations(state: CombatState, unit: CombatUnit) {
 }
 
 // Find appropriate targets
-export function grabValidTargets(unit: CombatUnit, state: CombatState): CombatUnit[] {
+export function grabValidTargets(unit: CombatUnit, state: CombatState, ability?: Ability): CombatUnit[] {
   const oppTeam = unit.team === 'player' ? state.enemyTeam : state.playerTeam;
   let alive = oppTeam.filter(u => u.activeInBattle && u.hp > 0);
+  alive = filterUntargetable(unit, state, alive);
+  alive = filterRottaUntargetable(unit, state, alive);
 
   // Special Duel override
   if (state.dynamicState?.isDuelActive) {
@@ -2900,12 +3019,20 @@ export function grabValidTargets(unit: CombatUnit, state: CombatState): CombatUn
      }
   }
 
+  const effects = (ability?.effects || []).map(e => e.toLowerCase());
+  const ignoreTaunt = effects.some(e => e.includes('ignore_taunt') || e.includes('ignores_taunt'))
+    || !!(ability && (
+      (ability.id === 'embow_basic' || ability.id === 'storm_com_special_2')
+      && alive.some(u => hasImperialContract(u))
+    ));
+  const ignoreStealth = effects.some(e => e.includes('ignore_stealth'));
+
   // Check for Taunting or Marked enemies (Marked overrides Stealth, Taunt doesn't technically but Marked acts as forced taunt)
   const forcedTargets = alive.filter(u => hasStatusFlag(u, 'marked'));
-  if (forcedTargets.length > 0) return forcedTargets;
+  if (forcedTargets.length > 0 && !ignoreTaunt) return forcedTargets;
 
   const taunts = alive.filter(u => hasStatusFlag(u, 'taunt'));
-  if (taunts.length > 0) {
+  if (taunts.length > 0 && !ignoreTaunt) {
       let valid = [...taunts];
       if (unit.characterId === 'barriss_offee') {
          const investigated = alive.filter(u => u.statuses.some(s => s.name === 'Investigation'));
@@ -2918,7 +3045,7 @@ export function grabValidTargets(unit: CombatUnit, state: CombatState): CombatUn
 
   // Standard targets (filter out stealth unless all are stealth)
   const isSqueakyPayout = unit.characterId === 'navrokk' && unit.statuses.some(s => s.name === 'Payout');
-  if (isSqueakyPayout) {
+  if (isSqueakyPayout || ignoreStealth) {
      return alive;
   }
   const nonStealthes = alive.filter(u => !hasStatusFlag(u, 'stealth'));
@@ -2945,6 +3072,22 @@ export function executeRevive(state: CombatState, unit: CombatUnit, healer: Comb
 
 export function checkDefeat(state: CombatState, target: CombatUnit, attacker: CombatUnit | null) {
   if (target.hp <= 0 && target.activeInBattle) {
+    markDebuffsOnDeath(target);
+    if (hasImperialContract(target)) {
+      if (!target.dynamicState) target.dynamicState = {};
+      target.dynamicState.hadImperialContract = true;
+    }
+    if (tryEndlessLegionSave(state, target)) return;
+    if (tryHuttCartelDeathSave(state, target)) return;
+    if (checkRottaLastAllyDefeat(state, target)) return;
+
+    if (target.preventRevive || target.dynamicState?.preventRevive) {
+      target.activeInBattle = false;
+      target.hp = 0;
+      logBattleEvent(state, `💀 ${target.name} is permanently defeated (cannot be revived)!`, 'death');
+      runDefeatHooks(state, target);
+      return;
+    }
     if (customDefeatHooks[target.characterId]) {
       customDefeatHooks[target.characterId](state, target, attacker);
       if (target.hp > 0 || !target.activeInBattle) return; // Prevented defeat
@@ -3153,9 +3296,10 @@ export function executeCombatAction(
 
   // Validate Target (Taunt / Stealth check) only for explicit player actions (depth 0)
   if (assistDepth === 0 && counterDepth === 0) {
-     const validTargets = grabValidTargets(attacker, state);
+     const validTargets = grabValidTargets(attacker, state, ability);
      const isValid = validTargets.some(t => t.id === target?.id);
-     if (!isValid && validTargets.length > 0) {
+     const ignoresTaunt = ability.effects.some(e => /ignore_taunt|ignores_taunt/i.test(e));
+     if (!isValid && validTargets.length > 0 && !ignoresTaunt) {
         // Reroute to a valid target (e.g. forced Taunt)
         target = validTargets[0];
      }
@@ -3220,6 +3364,8 @@ export function executeCombatAction(
   // 501st Special Ability Used trigger hook
   if (ability.type === 'special' && assistDepth === 0 && counterDepth === 0) {
      onSpecialAbilityUsed(state, attacker);
+     onArchitectSpecialUsed(state, attacker);
+     fireDescPassives(state, 'special_used', attacker);
 
      // Thrawn Predicted logic for Spectre special abilities
      const isSpectre = checkHasTag(attacker, 'Spectre') || checkHasTag(attacker, 'Spectre / Rebel') || checkHasTag(attacker, 'Spectres') || ['general_hera', 'chopper', 'sabine_apprentice', 'zeb_nr', 'ezra_exile', 'huyang', 'ahsoka_tano_grey'].includes(attacker.characterId);
@@ -3307,15 +3453,18 @@ export function executeCombatAction(
       // Blind: attacks miss
       const isBlind = attacker.statuses.some(s => s.name === 'Blind');
       const isSqueakyPayout = attacker.characterId === 'navrokk' && attacker.statuses.some(s => s.name === 'Payout');
-      const hasForesight = isSqueakyPayout ? false : hasStatusFlag(currentTarget, 'evade_next');
+      const ignoreForesight = ability.effects.some(e => /ignore_foresight/i.test(e));
+      const hasForesight = (isSqueakyPayout || ignoreForesight) ? false : hasStatusFlag(currentTarget, 'evade_next');
       
       if (hasForesight && ability.type !== 'ultimate') {
         logBattleEvent(state, `💨 ${currentTarget.name} used FORESIGHT to evade the attack!`, 'info');
         currentTarget.statuses = currentTarget.statuses.filter(s => s.name !== 'Foresight'); // Technically should filter by flag, but doing so directly is safe here
         baseDmg = 0;
+        onContractMiss(state, attacker);
       } else if (isBlind) {
         logBattleEvent(state, `💨 ${attacker.name} is BLIND and missed the attack!`, 'info');
         baseDmg = 0;
+        onContractMiss(state, attacker);
       }
 
       if (baseDmg === 0 && currentTarget.characterId === 'hunter' && !hasStatusFlag(currentTarget, 'prevent_tm_gain')) {
@@ -3374,8 +3523,27 @@ export function executeCombatAction(
           // Armor Mitigation
           // tarStats.defense is already modified by Defense Up/Down/Shattered in getModifiedStats
           let targetDefense = tarStats.defense;
+          if (ability.effects.some(e => /ignore_defense|penetrate_shield|defense_penetration/i.test(e))) {
+             targetDefense = 0;
+          }
           if (attacker.characterId === 'pendewqell' && attacker.statuses.some(s => s.name === 'Payout')) {
              targetDefense *= 0.65; // ignore 35% defense
+          }
+          const kitIgnore = getKitIgnoreDefensePct(attacker);
+          if (kitIgnore > 0) {
+             targetDefense *= (1 - kitIgnore);
+          }
+          const icMods = getImperialContractDamageMods(attacker, currentTarget, ability, counterDepth);
+          if (icMods.ignoreDefensePct > 0) {
+             targetDefense *= (1 - icMods.ignoreDefensePct);
+          }
+          if (icMods.dmgMult !== 1) {
+             baseDmg *= icMods.dmgMult;
+          }
+          const bribedMult = getHuttBribedDamageBonus(attacker, currentTarget);
+          if (bribedMult !== 1) baseDmg *= bribedMult;
+          if (attacker.dynamicState?.contractAssistBonus) {
+             baseDmg *= attacker.dynamicState.contractAssistBonus;
           }
           if (currentTarget.statuses.some(s => s.name === 'Lockdown')) {
              if (attacker.characterId === 'commander_thorn') {
@@ -3473,8 +3641,13 @@ export function executeCombatAction(
         let protectionDamage = 0;
 
         if (currentTarget.protection > 0) {
-          protectionDamage = Math.min(currentTarget.protection, currentFinalDamage);
-          healthDamage = currentFinalDamage - protectionDamage;
+          if (ability.effects.some(e => /ignore_protection/i.test(e))) {
+            healthDamage = currentFinalDamage;
+            protectionDamage = 0;
+          } else {
+            protectionDamage = Math.min(currentTarget.protection, currentFinalDamage);
+            healthDamage = currentFinalDamage - protectionDamage;
+          }
         } else {
           healthDamage = currentFinalDamage;
         }
@@ -3625,6 +3798,30 @@ export function executeCombatAction(
         if (healthDamage > 0) {
           const preHp = currentTarget.hp;
           currentTarget.hp = Math.max(0, currentTarget.hp - healthDamage);
+          onArchitectDamaged(state, currentTarget, healthDamage);
+          checkDoddLowHealthTaunt(state, currentTarget);
+          if (currentFinalDamage > 0) {
+            onKitDamageTaken(state, currentTarget, currentFinalDamage);
+            onImperialContractDamaged(state, currentTarget, currentFinalDamage);
+          }
+
+          // Ewok / Brotherly Love health threshold traps
+          if (preHp >= currentTarget.maxHp * 0.5 && currentTarget.hp < currentTarget.maxHp * 0.5) {
+            checkEwokTraps(state, 'enemy_below_50', currentTarget);
+            onImperialContractBelow50(state, currentTarget);
+            onHuttEnemyBelow50(state, currentTarget);
+          }
+          if (preHp >= currentTarget.maxHp * 0.3 && currentTarget.hp < currentTarget.maxHp * 0.3) {
+            checkEwokTraps(state, 'enemy_below_30', currentTarget);
+          }
+          if (preHp >= currentTarget.maxHp * 0.4 && currentTarget.hp < currentTarget.maxHp * 0.4) {
+            checkEwokTraps(state, 'ewok_below_40', currentTarget);
+          }
+          // Brotherly: Maul below 50% → Savage Defense Up
+          if (currentTarget.characterId === 'maul_mandalore' && preHp >= currentTarget.maxHp * 0.5 && currentTarget.hp < currentTarget.maxHp * 0.5) {
+            const savage = targetAllies.find(u => u.characterId === 'savage_opress_dw' && u.activeInBattle && u.hp > 0);
+            if (savage) applyStatus(state, savage, 'Defense Up', 2, false, savage);
+          }
 
       if (currentTarget.statuses.some(s => s.name === 'Pursued')) {
           const oppSquad = attacker.team === 'player' ? state.playerTeam : state.enemyTeam;
@@ -3837,8 +4034,22 @@ export function executeCombatAction(
     }
   });
 
-  
-  if (assistDepth > 0 || counterDepth > 0) {
+  if (assistDepth === 0 && counterDepth === 0) {
+    if (isCrit) fireDescPassives(state, 'crit', attacker);
+    if (finalDamage > 0) {
+      fireDescPassives(state, 'damage_dealt', attacker, {
+        statusName: target.statuses.some(s => s.name === 'Burning') ? 'Burning' : undefined
+      });
+      fireDescPassives(state, 'damage_taken', target);
+      if (target.hp > 0 && target.hp < target.maxHp * 0.5) {
+        fireDescPassives(state, 'ally_below_50', target);
+      }
+    }
+  }
+
+    if (assistDepth > 0 || counterDepth > 0) {
+      onKitAssistOrOutOfTurn(state, attacker);
+      checkEwokTraps(state, 'enemy_out_of_turn', attacker);
       if (attacker.tags.includes('Bad Batch') || checkHasTag(attacker, 'Bad Batch')) {
           const squad = attacker.team === 'player' ? state.playerTeam : state.enemyTeam;
           const tech = squad.find(u => u.characterId === 'tech_bb' && u.activeInBattle && u.hp > 0);
@@ -3935,6 +4146,35 @@ export function executeCombatAction(
 
   // Parse abilities descriptions dynamically to inject effects securely
   parseAndApplyEffects(state, attacker, target, ability, isCrit, targetAlly, assistDepth, counterDepth);
+
+  // Kit condition: ability-use payouts (Embo Merciless Pursuit, etc.)
+  if (assistDepth === 0 && counterDepth === 0) {
+    onKitAbilityUsed(state, attacker, ability);
+    onHuttAbilityUsed(state, attacker, ability, targetAlly);
+  }
+
+  // Imperial Contract ability extras + attack hooks
+  resolveImperialContractAbilityExtras(state, attacker, target, ability, assistDepth, counterDepth);
+  onImperialContractAttack(state, attacker, target, ability, assistDepth, counterDepth);
+  onBribedEnemyAttack(state, attacker);
+  if (assistDepth === 0 && counterDepth === 0) {
+    onDengarNoEscapeCounter(state, attacker, target);
+  }
+
+  // Imperial Architects — The Project stack gains/consumes from ability text
+  if (assistDepth === 0 && counterDepth === 0) {
+    handleProjectAbilityEffects(state, attacker, ability);
+  }
+
+  // Shared effect verbs: double_strike / bonus_attack
+  if (assistDepth === 0 && counterDepth === 0 && target.activeInBattle && target.hp > 0 && attacker.hp > 0) {
+    if (ability.effects.some(e => /double_strike|bonus_attack/i.test(e))) {
+      const basic = attacker.abilities.find(a => a.type === 'basic') || ability;
+      const follow = { ...basic, id: basic.id + '_followup', effects: basic.effects.filter(e => !/double_strike|bonus_attack|assist/i.test(e)) };
+      logBattleEvent(state, `⚔️ ${attacker.name} strikes again!`, 'info');
+      executeCombatAction(state, attacker.id, follow, target.id, undefined, assistDepth + 1, counterDepth);
+    }
+  }
   
   if (isCrit && state.conquestDataDisks?.includes('dd_volatile_accelerator') && attacker.team === 'player' && target.activeInBattle) {
      applyStatus(state, target, 'Damage Over Time', 2, true, attacker, 2);
@@ -4106,7 +4346,7 @@ function parseAndApplyEffects(
   } else if (isAllies || isRandomAlly) {
     globalTargetAllies = allies.filter(a => a.activeInBattle && a.hp > 0);
     
-    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius'];
+    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius', 'imperial architects', 'crimson dawn', 'corsair', 'bad batch', 'wolfpack', 'coruscant guard'];
     factions.forEach(fac => {
        if (allEffectsString.includes(fac) || allEffectsString.includes(fac.replace(' ', '_'))) {
           globalTargetAllies = globalTargetAllies.filter(a => checkHasTag(a, fac));
@@ -4123,7 +4363,7 @@ function parseAndApplyEffects(
   let globalTargetEnemies = [target];
   if (isEnemies) {
     globalTargetEnemies = enemies.filter(e => e.activeInBattle && e.hp > 0);
-    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius'];
+    const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'galactic republic', 'knightfall', 'bounty hunter', 'resistance', 'first order', 'ewok', 'jawa', 'tusken', 'inquisitorius', 'imperial architects', 'crimson dawn', 'corsair', 'bad batch', 'wolfpack', 'coruscant guard'];
     factions.forEach(fac => {
        const hasFactionEnemyMatch = allEffectsString.includes(`${fac} enemies`) || allEffectsString.includes(`${fac.replace(' ', '_')} enemies`);
        if (hasFactionEnemyMatch) {
@@ -4143,12 +4383,27 @@ function parseAndApplyEffects(
     
     let targetEnemies = globalTargetEnemies;
 
+    // Statuses that should persist / stack across the battle when gained from effects
+    const LONG_STATUS = new Set([
+      'Purge', 'Order 66', 'Armor Shred', 'Last Hope', 'Endless Legion', 'Resolve', 'Analysis',
+      'Treasure', 'Raid Mark', 'Contract', 'Imperial Contract', 'Momentum', 'Combined Arms',
+      'Council Guidance', 'Pathfinder', 'Insight', 'Intel', 'Impending Doom', 'Tactical Data',
+      'Tactical Advantage', 'Collector', 'Bounty', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
+      'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Secrecy', 'Payout',
+      'Imperial Approval', 'Information Broker', 'Corruption', 'Debt', 'Dossier', 'Guardian\'s Resolve',
+      'The Project', 'The Project Complete', 'Hostage Scientist', 'Brotherly Love', 'Scum'
+    ]);
+
     // Debuffs
     [
-      'Exposed', 'Defense Down', 'Speed Down', 'Offense Down', 'Ability Block',
+      'Exposed', 'Expose', 'Defense Down', 'Speed Down', 'Offense Down', 'Ability Block', 'Blocked',
       'Healing Immunity', 'Stun', 'Frostbite', 'Analyze', 'Purge', 'Bribed', 'Intimidated',
       'Daze', 'Target Lock', 'Vulnerable', 'Burning', 'Blind', 'Damage Over Time', 'Shattered Defense',
-      'Plague', 'Thermal Detonator', 'Order 66', 'Isolation', 'Marked', 'Potency Down', 'Shock', 'Buff Immunity', 'Fear', 'Pursued', 'Lockdown'
+      'Plague', 'Thermal Detonator', 'Order 66', 'Isolation', 'Marked', 'Marked Target', 'Potency Down',
+      'Tenacity Down', 'Shock', 'Buff Immunity', 'Fear', 'Pursued', 'Lockdown', 'Critical Chance Down',
+      'Accuracy Down', 'Stagger', 'Armor Shred', 'Corruption', 'Debt', 'Hostage', 'Infested',
+      'Information Broker', 'Explosive Charge', 'Foil', 'Tortured', 'Deathmark', 'Ambushed',
+      'Predicted', 'Suppressed', 'Battlefield Corruption', 'Imperial Decree', 'Dossier', 'Analyze'
     ].forEach(db => {
       const dbTag = db.toLowerCase().replace(/ /g, '_');
       if (effect.includes(db) || effect.includes(dbTag)) {
@@ -4157,7 +4412,18 @@ function parseAndApplyEffects(
         if (stackMatch) {
             count = parseInt(stackMatch[1] || stackMatch[2] || stackMatch[3] || '1');
         }
-        targetEnemies.forEach(e => applyStatus(state, e, db, db === 'Purge' ? 3 : 2, true, attacker, count));
+        // Canonicalize aliases
+        const statusName = db === 'Expose' ? 'Exposed' : (db === 'Blocked' ? 'Ability Block' : db);
+        const duration = statusName === 'Purge' ? 3 : (LONG_STATUS.has(statusName) ? 99 : 2);
+        let recipients = targetEnemies;
+        if (effectLower.includes(`${dbTag}_aoe`) || effectLower.includes(`${db.toLowerCase()}_aoe`) || effectLower === 'debuff_aoe') {
+          recipients = (attacker.team === 'player' ? state.enemyTeam : state.playerTeam)
+            .filter(u => u.activeInBattle && u.hp > 0);
+        }
+        recipients.forEach(e => {
+          if (isImperialContractGatedStatus(ability, statusName) && !hasImperialContract(e)) return;
+          applyStatus(state, e, statusName, duration, true, attacker, count);
+        });
       }
     });
 
@@ -4170,10 +4436,18 @@ function parseAndApplyEffects(
     
     // Buffs
     [
-      'Defense Up', 'Speed Up', 'Tenacity Up', 'Offense Up', 'Retribution', 
-      'Stealth', 'Taunt', 'Foresight', 'Advantage', 'Protection Up', 
-      'Critical Chance Up', 'Critical Damage Up', 'Inspired',
-      'Heal Over Time', 'Protection Over Time', 'Dramatic Entrance', 'Damage Immunity', 'Potency Up', 'Riot Control'
+      'Defense Up', 'Speed Up', 'Tenacity Up', 'Offense Up', 'Health Up', 'Retribution',
+      'Stealth', 'Taunt', 'Foresight', 'Advantage', 'Protection Up',
+      'Critical Chance Up', 'Critical Damage Up', 'Inspired', 'Accuracy Up', 'Defense Penetration Up',
+      'Heal Over Time', 'Protection Over Time', 'Dramatic Entrance', 'Damage Immunity', 'Potency Up',
+      'Riot Control', 'Momentum', 'Combined Arms', 'Pathfinder', 'Negotiator', 'Secrecy', 'Treasure',
+      'Payout', 'Raid Mark', 'Artifact', 'Contract', 'Imperial Contract', 'Bounty', 'Collector',
+      'Last Hope', 'Endless Legion', 'Resolve', 'Analysis', 'Insight', 'Intel', 'Impending Doom',
+      'Tactical Data', 'Tactical Advantage', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
+      'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Unconventional Tactics',
+      'Imperial Approval', 'Ordered Fire', 'Council Guidance', "Guardian's Resolve", 'Inspired',
+      'Whiteout', 'Ultimate Stance', 'Protect the Child', 'The Project', 'The Project Complete', 'Hostage Scientist',
+      'Brotherly Love', 'Scum'
     ].forEach(bf => {
       const bfTag = bf.toLowerCase().replace(/ /g, '_');
       if (effect.includes(bf) || effect.includes(bfTag)) {
@@ -4185,7 +4459,14 @@ function parseAndApplyEffects(
         if (stackMatch) {
             count = parseInt(stackMatch[1] || stackMatch[2] || stackMatch[3] || '1');
         }
-        targetAllies.forEach(a => applyStatus(state, a, bf, 2, false, attacker, count));
+        const duration = LONG_STATUS.has(bf) ? 99 : 2;
+        // AoE-tagged custom statuses (Secrecy_aoe, etc.) still match via includes(bf)
+        let recipients = targetAllies;
+        if (effectLower.includes(`${bfTag}_aoe`) || effectLower.includes(`${bf.toLowerCase()}_aoe`)) {
+          recipients = (attacker.team === 'player' ? state.playerTeam : state.enemyTeam)
+            .filter(u => u.activeInBattle && u.hp > 0);
+        }
+        recipients.forEach(a => applyStatus(state, a, bf, duration, false, attacker, count));
       }
     });
 
@@ -4261,6 +4542,7 @@ function parseAndApplyEffects(
         u.protection = Math.min(u.maxProtection, u.protection + rec);
         logBattleEvent(state, `💚 ${u.name} recovered ${rec} Protection`, 'heal');
         triggerJabbaUltimateCharge(state, u);
+        onCartelRecovery(state, u);
       });
     }
 
@@ -4306,7 +4588,7 @@ function parseAndApplyEffects(
             logBattleEvent(state, `✨ All Buffs Dispelled from ${e.name}`, 'info');
          });
       }
-      if (effectLower.includes('cleanse_ally') || effectLower.includes('cleanse_all') || effectLower.includes('debuffs')) {
+      if (effectLower.includes('cleanse_ally') || effectLower.includes('cleanse_all') || effectLower.includes('debuffs') || effectLower.includes('self_cleanse') || effectLower.includes('debuff_dispel')) {
          targetAllies.forEach(a => {
             a.statuses = a.statuses.filter(s => {
                const def = STATUS_DEFINITIONS[s.name];
@@ -4316,6 +4598,122 @@ function parseAndApplyEffects(
             });
             logBattleEvent(state, `✨ All Debuffs Cleansed from ${a.name}`, 'heal');
          });
+      }
+    }
+
+    // consume_secrecy
+    if (effectLower.includes('consume_secrecy')) {
+      targetAllies.concat([attacker]).forEach(u => {
+        const sec = u.statuses.find(s => s.name === 'Secrecy');
+        if (sec) {
+          u.statuses = u.statuses.filter(s => s.name !== 'Secrecy');
+          logBattleEvent(state, `🕶️ ${u.name} consumes Secrecy!`, 'buff');
+          fireDescPassives(state, 'secrecy_consumed', u);
+        }
+      });
+    }
+
+    // consume_treasure
+    if (effectLower.includes('consume_treasure')) {
+      const m = ability.desc.match(/consume\s+(\d+)\s+treasure/i) || ability.desc.match(/(\d+)\s+treasure/i);
+      const amt = m ? parseInt(m[1], 10) : 1;
+      consumeTreasure(attacker, amt, state);
+    }
+
+    // steal_buff / steal_buff_all
+    if (effectLower.includes('steal_buff')) {
+      const victims = effectLower.includes('all') ? targetEnemies : [target];
+      victims.forEach(e => {
+        const stealable = e.statuses.filter(s => {
+          const def = STATUS_DEFINITIONS[s.name];
+          return def && def.type === 'buff' && !(def.flags || []).includes('prevent_copy');
+        });
+        if (stealable.length) {
+          const stolen = effectLower.includes('all') ? stealable : [stealable[0]];
+          stolen.forEach(s => {
+            e.statuses = e.statuses.filter(x => x !== s);
+            applyStatus(state, attacker, s.name, s.duration, false, attacker, s.count || 1);
+          });
+          logBattleEvent(state, `🦹 ${attacker.name} stole buffs from ${e.name}!`, 'buff');
+        }
+      });
+    }
+
+    // cooldown_decrease / cooldown_reduction variants
+    if (effectLower.includes('cooldown_decrease') || effectLower.includes('cooldown_manipulation') || effectLower.includes('cooldown_reset')) {
+      const pool = effectLower.includes('aoe') || effectLower.includes('all')
+        ? allies.filter(a => a.activeInBattle && a.hp > 0)
+        : [attacker];
+      pool.forEach(a => {
+        Object.keys(a.cooldowns).forEach(k => {
+          if (effectLower.includes('reset')) a.cooldowns[k] = 0;
+          else if (a.cooldowns[k] > 0) a.cooldowns[k] = Math.max(0, a.cooldowns[k] - 1);
+        });
+      });
+      logBattleEvent(state, `⏳ Cooldowns adjusted for ${attacker.name}'s allies!`, 'buff');
+    }
+
+    // instakill / instant_defeat / defeat_enemy / prevent_revive
+    if (effectLower.includes('instakill') || effectLower.includes('instant_defeat') || effectLower.includes('defeat_enemy')) {
+      // Piett Authority handled by custom handler; generic: deal lethal if not prevented
+      if (ability.id !== 'piett_f_special_3') {
+        target.hp = 0;
+        if (effectLower.includes('prevent_revive') || effectLower.includes('unrevivable')) {
+          target.preventRevive = true;
+        }
+        logBattleEvent(state, `💀 ${target.name} is defeated outright!`, 'death', target.id, attacker.id);
+        runDefeatHooks(state, target);
+      }
+    }
+
+    if (effectLower.includes('prevent_revive') || effectLower.includes('unrevivable')) {
+      target.preventRevive = true;
+    }
+
+    // sacrifice (non-Galen generic)
+    if (effectLower.includes('sacrifice') && ability.id !== 'galen_special_2') {
+      attacker.hp = 0;
+      logBattleEvent(state, `💔 ${attacker.name} sacrifices themselves!`, 'death');
+      runDefeatHooks(state, attacker);
+    }
+
+    // burn / burn_all → Burning status
+    if (effect === 'burn' || effectLower === 'burn_all') {
+      const victims = effectLower.includes('all') ? targetEnemies : [target];
+      victims.forEach(e => applyStatus(state, e, 'Burning', 2, true, attacker));
+    }
+
+    // Stat-up aliases that aren't Title Case statuses
+    if (effectLower === 'crit_chance_up') applyStatus(state, attacker, 'Critical Chance Up', 2, false, attacker);
+    if (effectLower === 'crit_damage_up' || effectLower === 'crit_damage') applyStatus(state, attacker, 'Critical Damage Up', 2, false, attacker);
+    if (effectLower === 'crit_avoidance_up' || effectLower === 'evasion_up') applyStatus(state, attacker, 'Foresight', 1, false, attacker);
+    if (effectLower === 'accuracy_up' || effect === 'Accuracy Up') applyStatus(state, attacker, 'Accuracy Up', 2, false, attacker);
+
+    // max_health_reduction
+    if (effectLower.includes('max_health_reduction')) {
+      target.maxHp = Math.max(1, Math.round(target.maxHp * 0.9));
+      target.hp = Math.min(target.hp, target.maxHp);
+      logBattleEvent(state, `📉 ${target.name} Max Health reduced!`, 'debuff');
+    }
+
+    // swap_turn_meter
+    if (effectLower.includes('swap_turn_meter')) {
+      const tmp = attacker.turnMeter;
+      attacker.turnMeter = target.turnMeter;
+      target.turnMeter = tmp;
+      logBattleEvent(state, `🔄 Turn Meter swapped between ${attacker.name} and ${target.name}!`, 'info');
+    }
+
+    // turn_meter_gain_ally — grant TM to a non-self ally
+    if (effectLower.includes('turn_meter_gain_ally')) {
+      const m = ability.desc.match(/(\d+)%\s*turn meter/i);
+      const pct = m ? parseInt(m[1], 10) : 5;
+      const ally = explicitTargetAlly && explicitTargetAlly.id !== attacker.id
+        ? explicitTargetAlly
+        : allies.filter(a => a.id !== attacker.id && a.activeInBattle && a.hp > 0)[0];
+      if (ally && !hasStatusFlag(ally, 'prevent_tm_gain')) {
+        ally.turnMeter = Math.min(100, ally.turnMeter + pct);
+        logBattleEvent(state, `📈 ${ally.name} gains ${pct}% Turn Meter!`, 'buff');
       }
     }
   });
@@ -5474,7 +5872,7 @@ function triggerAssist(state: CombatState, attacker: CombatUnit, target: CombatU
   let eligible = [...aliveAllies];
   const effectLower = effectText.toLowerCase();
   
-  const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'knightfall'];
+  const factions = ['501st', '212th', 'jedi', 'separatist', 'rebel', 'empire', 'sith', 'clone trooper', 'droid', 'mandalorian', 'hutt cartel', 'smuggler', 'scoundrel', 'republic', 'knightfall', 'imperial architects', 'crimson dawn', 'corsair', 'death watch', 'bounty hunter', 'rogue one', 'rebel command'];
   
   let targetedFactions = factions.filter(fac => effectLower.includes(fac) || effectLower.includes(fac.replace(' ', '_')));
   if (targetedFactions.length > 0) {
@@ -5493,6 +5891,7 @@ function triggerAssist(state: CombatState, attacker: CombatUnit, target: CombatU
         const basic = ally.abilities.find(a => a.type === 'basic') || ally.abilities[0];
         logBattleEvent(state, `➡️ Assist: ${ally.name} strikes!`, 'info');
         executeCombatAction(state, ally.id, basic, target.id, undefined, idx + 1, 0);
+        fireDescPassives(state, 'assist', ally);
       }
     });
   } else {
@@ -5506,6 +5905,7 @@ function triggerAssist(state: CombatState, attacker: CombatUnit, target: CombatU
     const basic = chosen.abilities.find(a => a.type === 'basic') || chosen.abilities[0];
     logBattleEvent(state, `➡️ Assist: ${chosen.name} strikes!`, 'info');
     executeCombatAction(state, chosen.id, basic, target.id, undefined, 1, 0);
+    fireDescPassives(state, 'assist', chosen);
   }
 }
 
@@ -5564,6 +5964,12 @@ export function solveSimBattle(
 export function applySquadPassives(state: CombatState, teamToApply?: 'player' | 'enemy' | 'all') {
   // Expose an extensible layer for custom entire-squad passives
   customSquadPassives.forEach(hook => hook(state));
+  // Install description-parsed leader/unique passives (idempotent)
+  installDescPassives(state);
+  // Install BH Payout / Scum / Traps / Brotherly Love / Endless Legion / Howzer
+  installKitConditions(state);
+  installImperialContract(state);
+  installHuttContracts(state);
 
   const teams: ('player' | 'enemy')[] = teamToApply && teamToApply !== 'all' ? [teamToApply] : ['player', 'enemy'];
   
@@ -5651,22 +6057,14 @@ export function applySquadPassives(state: CombatState, teamToApply?: 'player' | 
               buffApplied = true;
             }
           } else if (leader.characterId === 'bib_fortuna') {
-            if (unit.tags.includes('Hutt Cartel')) {
-              unit.speed += 20;
-              buffApplied = true;
-            }
+            // Contract rewards granted on completion (see huttContractSystem)
+            buffApplied = true;
           } else if (leader.characterId === 'boba_fett_daimyo') {
-            if (unit.tags.includes('Hutt Cartel')) {
-              unit.offense *= 1.25;
-              buffApplied = true;
-            }
+            // Contract rewards granted on completion (see huttContractSystem)
+            buffApplied = true;
           } else if (leader.characterId === 'jabba') {
-            if (unit.tags.includes('Hutt Cartel')) {
-              unit.speed += 25;
-              unit.maxHp *= 1.35;
-              unit.hp = unit.maxHp;
-              buffApplied = true;
-            }
+            // Contract rewards granted on completion (see huttContractSystem)
+            buffApplied = true;
           } else if (leader.characterId === 'hunter') {
             if (unit.tags.includes('Bad Batch')) {
               unit.speed += 25;
@@ -5999,9 +6397,10 @@ export function applySquadPassives(state: CombatState, teamToApply?: 'player' | 
 // GL Ultimate Pasive Triggers
 export function triggerLeiaUltimateCharge(state: CombatState, allyTakingDamage: CombatUnit) {
    const team = allyTakingDamage.team === 'player' ? state.playerTeam : state.enemyTeam;
-   const glLeia = team.find(u => u.characterId === 'gl_leia' && u.activeInBattle && u.hp > 0);
+   const glLeia = team.find(u => (u.characterId === 'leia_gl' || u.characterId === 'gl_leia') && u.activeInBattle && u.hp > 0);
    if (glLeia && glLeia.ultimateCharge !== undefined) {
       glLeia.ultimateCharge = Math.min(100, glLeia.ultimateCharge + 5);
+      logBattleEvent(state, `✨ Leia gains 5% Ultimate Charge (${glLeia.ultimateCharge}%)!`, 'ultimate');
    }
 }
 

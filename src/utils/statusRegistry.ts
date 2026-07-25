@@ -17,6 +17,7 @@ export const STATUS_DEFINITIONS: Record<string, {
 }> = {
     // Buffs
     'Offense Up': { name: 'Offense Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { offense: 1.5 }, desc: 'Increases Offense by 50%' },
+    'Health Up': { name: 'Health Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Increases Max Health effectiveness and incoming healing potency while active' },
     'Defense Up': { name: 'Defense Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { defense: 1.5 }, desc: 'Increases Defense by 50%' },
     'Speed Up': { name: 'Speed Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { speed: 1.25 }, desc: 'Increases Speed by 25%' },
     'Tenacity Up': { name: 'Tenacity Up', type: 'buff', stackLimit: 1, flags: ['tenacity_up'], statModifiers: { tenacity: 0.5 }, desc: 'Base chance to resist harmful effects drastically increased' },
@@ -116,7 +117,7 @@ export const STATUS_DEFINITIONS: Record<string, {
     'Contract': { name: 'Contract', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Bounty Hunter Contract.' },
     'Bounty': { name: 'Bounty', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Bounty Hunter Reward.' },
     'Unleashed': { name: 'Unleashed', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Starkiller Unleashed.' },
-    'Imperial Contract': { name: 'Imperial Contract', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Imperial Remnant Contract.' },
+    'Imperial Contract': { name: 'Imperial Contract', type: 'debuff', stackLimit: 1, flags: ['prevent_cleanse', 'imperial_contract'], statModifiers: {}, desc: 'Marked by Rebel Hunters. Transfers when the holder is defeated. Enables Rebel Hunter Contract synergies.' },
     'Armor Shred': { name: 'Armor Shred', type: 'debuff', stackLimit: 99, flags: ['prevent_cleanse'], statModifiers: { defense: 0.5 }, desc: 'Defense permanently reduced.' },
     'Debt': { name: 'Debt', type: 'debuff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Hondo mechanic.' },
     'Corruption': { name: 'Corruption', type: 'debuff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Corruption mechanic.' },
@@ -142,5 +143,20 @@ export const STATUS_DEFINITIONS: Record<string, {
     'Imperial Decree': { name: 'Imperial Decree', type: 'debuff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: { speedAdd: -10, tenacity: -0.20 }, desc: 'Designated an enemy of the Empire. -10 Speed and -20% Tenacity. Cannot be copied, dispelled, or prevented.' },
     'Dossier': { name: 'Dossier', type: 'debuff', stackLimit: 5, flags: [], statModifiers: {}, desc: 'Sought-after imperial evidence. Enables advanced ISB execution strategies and tactical debuffs.' },
     'Expose': { name: 'Expose', type: 'debuff', stackLimit: 1, flags: ['bonus_damage_on_hit', 'consume_on_hit'], statModifiers: {}, desc: 'Takes bonus damage equivalent to 10% Max HP when damaged next' },
-    'Protect the Child': { name: 'Protect the Child', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'protect_the_child'], statModifiers: {}, desc: 'Rotta the Huttlet accompanies this unit. If this unit loses all Protection, the entire team suffers Offense Down until protection is restored.' }
+    'Protect the Child': { name: 'Protect the Child', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'protect_the_child'], statModifiers: {}, desc: 'Rotta the Huttlet accompanies this unit. If this unit loses all Protection, the entire team suffers Offense Down until protection is restored.' },
+
+    // Scripted / ability-named statuses previously applied or checked without definitions
+    'Imperial Approval': { name: 'Imperial Approval', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: { offense: 1.15, tenacity: 0.15 }, desc: 'Emperor Palpatine holds Imperial Approval. Imperial allies recover Protection when enemies fall.' },
+    'Ordered Fire': { name: 'Ordered Fire', type: 'buff', stackLimit: 1, flags: [], statModifiers: { critChance: 0.1 }, desc: 'Coordinated volley. This unit has issued or received Ordered Fire and fights with heightened coordination.' },
+    // Alias recognized by AI / logs (canonical status remains Ability Block)
+    'Blocked': { name: 'Blocked', type: 'debuff', stackLimit: 1, flags: ['prevent_special'], statModifiers: {}, desc: 'Alias of Ability Block. Cannot use Special or Ultimate abilities.' },
+
+    // Imperial Architects — The Project
+    'The Project': { name: 'The Project', type: 'buff', stackLimit: 99, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Team construction progress toward the Imperial superweapon. Reaches Complete at 25 stacks. Cannot be dispelled, copied, or prevented.' },
+    'The Project Complete': { name: 'The Project Complete', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'The Project has reached 25 stacks. Authority By All Means is unlocked.' },
+    'Hostage Scientist': { name: 'Hostage Scientist', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Galen Erso is held as the Hostage Scientist. Cannot be dispelled. Damaging him advances The Project.' },
+
+    // Kit condition trackers
+    'Brotherly Love': { name: 'Brotherly Love', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Nightbrother bond between Maul and Savage. Enables shared TM and Offense synergies.' },
+    'Scum': { name: 'Scum', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: {}, desc: "Jabba's Pet. Salacious B. Crumb gains +50 Speed after taking 10 turns." }
 };

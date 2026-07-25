@@ -1,6 +1,29 @@
 import { CombatState, CombatUnit, Ability } from '../../types';
 import { applyStatus, executeCombatAction, checkHasTag, logBattleEvent, hasStatusFlag, getModifiedStats, reduceTurnMeter, runDefeatHooks, triggerSummon } from '../combatEngine';
 import { STATUS_DEFINITIONS } from '../statusRegistry';
+export {
+  handleProjectAbilityEffects,
+  onArchitectSpecialUsed,
+  onArchitectAllyDefeated,
+  onArchitectDefeatedEnemy,
+  onArchitectDamaged,
+  onArchitectBuffGained,
+  onArchitectGainedDefenseUp,
+  ensureHostageScientist,
+  checkDoddLowHealthTaunt,
+  isProjectComplete,
+  addProjectStacks,
+  consumeProjectStacks,
+  getProjectStacks,
+  isImperialArchitect
+} from './projectSystem';
+import {
+  ensureHostageScientist,
+  handleProjectAbilityEffects,
+  isProjectComplete,
+  consumeProjectStacks,
+  isImperialArchitect
+} from './projectSystem';
 
 export type CustomAbilityHandler = (
   state: CombatState,
@@ -19,6 +42,52 @@ export const customAbilityHandlers: Record<string, CustomAbilityHandler> = {};
 // Passives that run during applySquadPassives for the ENTIRE team
 export const customSquadPassives: Array<(state: CombatState) => void> = [];
 
+// Imperial Architects: grant Hostage Scientist at battle start
+customSquadPassives.push((state) => {
+  ensureHostageScientist(state);
+});
+
+// Authority By All Means — instakill when Project Complete
+customAbilityHandlers['piett_f_special_3'] = (state, attacker, target) => {
+  if (!isProjectComplete(state, attacker.team)) {
+    logBattleEvent(state, `🚫 Authority By All Means locked — The Project is not Complete!`, 'debuff');
+    return;
+  }
+  if (state.dynamicState?.authorityUsed?.[attacker.team]) {
+    logBattleEvent(state, `🚫 Authority By All Means already used this battle!`, 'debuff');
+    return;
+  }
+  if (!state.dynamicState) state.dynamicState = {};
+  if (!state.dynamicState.authorityUsed) state.dynamicState.authorityUsed = {};
+  consumeProjectStacks(state, attacker, 999);
+  state.dynamicState.authorityUsed[attacker.team] = true;
+  target.hp = 0;
+  target.protection = 0;
+  target.preventRevive = true;
+  if (!target.dynamicState) target.dynamicState = {};
+  target.dynamicState.preventRevive = true;
+  logBattleEvent(state, `☢️ Authority By All Means: The Executor destroys ${target.name}! Cannot be revived.`, 'ultimate', target.id, attacker.id);
+  runDefeatHooks(state, target);
+};
+
+// Galen sacrifice For Jyn
+customAbilityHandlers['galen_special_2'] = (state, attacker) => {
+  handleProjectAbilityEffects(state, attacker, attacker.abilities.find(a => a.id === 'galen_special_2') || {
+    id: 'galen_special_2', name: 'For Jyn', type: 'special', cooldown: 5,
+    desc: 'Galen is defeated. All Imperial Architect allies recover 50% Health and Protection. Gain 8 stacks of The Project. Reduce all Imperial Architect cooldowns by 1. This ability can only be used once per battle.',
+    effects: ['sacrifice', 'heal_all_faction', 'The Project'], aiTags: ['heal']
+  });
+  const allies = attacker.team === 'player' ? state.playerTeam : state.enemyTeam;
+  allies.filter(a => a.activeInBattle && a.hp > 0 && isImperialArchitect(a)).forEach(a => {
+    a.hp = Math.min(a.maxHp, a.hp + Math.round(a.maxHp * 0.5));
+    a.protection = Math.min(a.maxProtection, a.protection + Math.round(a.maxProtection * 0.5));
+    Object.keys(a.cooldowns).forEach(k => { if (a.cooldowns[k] > 0) a.cooldowns[k] = Math.max(0, a.cooldowns[k] - 1); });
+  });
+  attacker.hp = 0;
+  logBattleEvent(state, `💔 For Jyn: Galen sacrifices himself! Imperial Architects recover and cool down!`, 'heal');
+  runDefeatHooks(state, attacker);
+};
+
 // Helper for managing Treasure
 export function getTreasure(unit: CombatUnit): number {
    return unit.dynamicState?.treasure || 0;
@@ -27,12 +96,19 @@ export function addTreasure(unit: CombatUnit, amount: number, state: CombatState
    if (!unit.dynamicState) unit.dynamicState = {};
    const current = unit.dynamicState.treasure || 0;
    unit.dynamicState.treasure = Math.min(10, current + amount);
+   // Keep status icon/stacks in sync with the Treasure alt system
+   applyStatus(state, unit, 'Treasure', 99, false, unit, unit.dynamicState.treasure);
    logBattleEvent(state, `💰 ${unit.name} gains +${amount} Treasure (Total: ${unit.dynamicState.treasure})!`, 'buff');
 }
 export function consumeTreasure(unit: CombatUnit, amount: number, state: CombatState): boolean {
    const current = getTreasure(unit);
    if (current >= amount) {
       unit.dynamicState.treasure = current - amount;
+      if (unit.dynamicState.treasure > 0) {
+        applyStatus(state, unit, 'Treasure', 99, false, unit, unit.dynamicState.treasure);
+      } else {
+        unit.statuses = unit.statuses.filter(s => s.name !== 'Treasure');
+      }
       logBattleEvent(state, `🪙 ${unit.name} paid ${amount} Treasure (Total: ${unit.dynamicState.treasure}).`, 'buff');
       return true;
    }

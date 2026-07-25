@@ -5,6 +5,8 @@ import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
+    // Relative asset paths so the Capacitor Android WebView can load the bundle.
+    base: './',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
