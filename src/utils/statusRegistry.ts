@@ -154,5 +154,9 @@ export const STATUS_DEFINITIONS: Record<string, {
     // Imperial Architects — The Project
     'The Project': { name: 'The Project', type: 'buff', stackLimit: 99, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Team construction progress toward the Imperial superweapon. Reaches Complete at 25 stacks. Cannot be dispelled, copied, or prevented.' },
     'The Project Complete': { name: 'The Project Complete', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'The Project has reached 25 stacks. Authority By All Means is unlocked.' },
-    'Hostage Scientist': { name: 'Hostage Scientist', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Galen Erso is held as the Hostage Scientist. Cannot be dispelled. Damaging him advances The Project.' }
+    'Hostage Scientist': { name: 'Hostage Scientist', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Galen Erso is held as the Hostage Scientist. Cannot be dispelled. Damaging him advances The Project.' },
+
+    // Kit condition trackers
+    'Brotherly Love': { name: 'Brotherly Love', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Nightbrother bond between Maul and Savage. Enables shared TM and Offense synergies.' },
+    'Scum': { name: 'Scum', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: {}, desc: "Jabba's Pet. Salacious B. Crumb gains +50 Speed after taking 10 turns." }
 };

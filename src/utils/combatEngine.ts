@@ -6,6 +6,20 @@ import { customAbilityHandlers, customSquadPassives, customDefeatHooks, customTu
   checkDoddLowHealthTaunt, consumeTreasure
 } from './combat/customKitLogic';
 import { installDescPassives, fireDescPassives, getDescAuraStatMods } from './combat/descPassiveSystem';
+import {
+  installKitConditions,
+  onKitDamageTaken,
+  onKitAbilityUsed,
+  onKitDebuffInflicted,
+  onKitTurnStart,
+  tryEndlessLegionSave,
+  checkEwokTraps,
+  filterUntargetable,
+  onLastHopeGained,
+  onKitAssistOrOutOfTurn,
+  getKitIgnoreDefensePct,
+  kitDebuffsCannotResist,
+} from './combat/kitConditionSystem';
 
 // Anti-Loop Bounds
 const MAX_ASSIST_DEPTH = 10;
@@ -1120,6 +1134,7 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
 
   // Potency/Tenacity Roll for Debuffs
   if (isDebuff && attacker && name !== 'Order 66' && name !== 'Imperial Decree') {
+    if (!kitDebuffsCannotResist(attacker)) {
     const attStats = getModifiedStats(attacker, attacker.team === 'player' ? state.playerTeam : state.enemyTeam);
     const tarStats = getModifiedStats(target, target.team === 'player' ? state.playerTeam : state.enemyTeam);
     const resistChance = Math.min(0.85, Math.max(0.15, tarStats.tenacity - attStats.potency));
@@ -1142,6 +1157,7 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
         applyStatus(state, target, 'Purge', 3, true, attacker, 1);
       }
       return;
+    }
     }
   }
 
@@ -1208,6 +1224,9 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
          applyStatus(state, target, 'Marked', 2, true, attacker, 1);
          logBattleEvent(state, `💀 ORDER 66 EXECUTED on ${target.name}!`, 'debuff');
       }
+
+      if (isDebuff && attacker) onKitDebuffInflicted(state, attacker, target, name);
+      if (!isDebuff && name === 'Last Hope' && countGained > 0) onLastHopeGained(state, target);
       
       return;
     }
@@ -1256,6 +1275,8 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
           logBattleEvent(state, `🛰️ Forward Observer: Neyo inflicts a debuff! Gains 5% Turn Meter!`, 'buff');
        }
     }
+    if (isDebuff && attacker) onKitDebuffInflicted(state, attacker, target, name);
+    if (!isDebuff && name === 'Last Hope') onLastHopeGained(state, target);
     return;
   }
 
@@ -1602,6 +1623,19 @@ export function applyStatus(state: CombatState, target: CombatUnit, name: string
           });
        }
     }
+  }
+
+  // Kit condition trackers (BH Payout / Aurra Contract Broker)
+  if (isDebuff && attacker) {
+    onKitDebuffInflicted(state, attacker, target, name);
+  }
+
+  // Last Hope / Ewok Taunt traps
+  if (!isDebuff && name === 'Last Hope') {
+    onLastHopeGained(state, target);
+  }
+  if (!isDebuff && name === 'Taunt') {
+    checkEwokTraps(state, 'enemy_taunt', target);
   }
 }
 
@@ -2179,6 +2213,8 @@ function processTurnPassivesStart(state: CombatState, unit: CombatUnit) {
   if (customTurnStartHooks[unit.characterId]) {
      customTurnStartHooks[unit.characterId](state, unit);
   }
+
+  onKitTurnStart(state, unit);
 
   // Cooldown decrement
   Object.keys(unit.cooldowns).forEach(key => {
@@ -2927,6 +2963,7 @@ export function decrementStatusDurations(state: CombatState, unit: CombatUnit) {
 export function grabValidTargets(unit: CombatUnit, state: CombatState, ability?: Ability): CombatUnit[] {
   const oppTeam = unit.team === 'player' ? state.enemyTeam : state.playerTeam;
   let alive = oppTeam.filter(u => u.activeInBattle && u.hp > 0);
+  alive = filterUntargetable(unit, state, alive);
 
   // Special Duel override
   if (state.dynamicState?.isDuelActive) {
@@ -2998,6 +3035,8 @@ export function executeRevive(state: CombatState, unit: CombatUnit, healer: Comb
 
 export function checkDefeat(state: CombatState, target: CombatUnit, attacker: CombatUnit | null) {
   if (target.hp <= 0 && target.activeInBattle) {
+    if (tryEndlessLegionSave(state, target)) return;
+
     if (target.preventRevive || target.dynamicState?.preventRevive) {
       target.activeInBattle = false;
       target.hp = 0;
@@ -3444,6 +3483,10 @@ export function executeCombatAction(
           if (attacker.characterId === 'pendewqell' && attacker.statuses.some(s => s.name === 'Payout')) {
              targetDefense *= 0.65; // ignore 35% defense
           }
+          const kitIgnore = getKitIgnoreDefensePct(attacker);
+          if (kitIgnore > 0) {
+             targetDefense *= (1 - kitIgnore);
+          }
           if (currentTarget.statuses.some(s => s.name === 'Lockdown')) {
              if (attacker.characterId === 'commander_thorn') {
                 targetDefense *= 0.80; // ignore 20% defense
@@ -3699,6 +3742,25 @@ export function executeCombatAction(
           currentTarget.hp = Math.max(0, currentTarget.hp - healthDamage);
           onArchitectDamaged(state, currentTarget, healthDamage);
           checkDoddLowHealthTaunt(state, currentTarget);
+          if (currentFinalDamage > 0) {
+            onKitDamageTaken(state, currentTarget, currentFinalDamage);
+          }
+
+          // Ewok / Brotherly Love health threshold traps
+          if (preHp >= currentTarget.maxHp * 0.5 && currentTarget.hp < currentTarget.maxHp * 0.5) {
+            checkEwokTraps(state, 'enemy_below_50', currentTarget);
+          }
+          if (preHp >= currentTarget.maxHp * 0.3 && currentTarget.hp < currentTarget.maxHp * 0.3) {
+            checkEwokTraps(state, 'enemy_below_30', currentTarget);
+          }
+          if (preHp >= currentTarget.maxHp * 0.4 && currentTarget.hp < currentTarget.maxHp * 0.4) {
+            checkEwokTraps(state, 'ewok_below_40', currentTarget);
+          }
+          // Brotherly: Maul below 50% → Savage Defense Up
+          if (currentTarget.characterId === 'maul_mandalore' && preHp >= currentTarget.maxHp * 0.5 && currentTarget.hp < currentTarget.maxHp * 0.5) {
+            const savage = targetAllies.find(u => u.characterId === 'savage_opress_dw' && u.activeInBattle && u.hp > 0);
+            if (savage) applyStatus(state, savage, 'Defense Up', 2, false, savage);
+          }
 
       if (currentTarget.statuses.some(s => s.name === 'Pursued')) {
           const oppSquad = attacker.team === 'player' ? state.playerTeam : state.enemyTeam;
@@ -3925,6 +3987,8 @@ export function executeCombatAction(
   }
 
     if (assistDepth > 0 || counterDepth > 0) {
+      onKitAssistOrOutOfTurn(state, attacker);
+      checkEwokTraps(state, 'enemy_out_of_turn', attacker);
       if (attacker.tags.includes('Bad Batch') || checkHasTag(attacker, 'Bad Batch')) {
           const squad = attacker.team === 'player' ? state.playerTeam : state.enemyTeam;
           const tech = squad.find(u => u.characterId === 'tech_bb' && u.activeInBattle && u.hp > 0);
@@ -4021,6 +4085,11 @@ export function executeCombatAction(
 
   // Parse abilities descriptions dynamically to inject effects securely
   parseAndApplyEffects(state, attacker, target, ability, isCrit, targetAlly, assistDepth, counterDepth);
+
+  // Kit condition: ability-use payouts (Embo Merciless Pursuit, etc.)
+  if (assistDepth === 0 && counterDepth === 0) {
+    onKitAbilityUsed(state, attacker, ability);
+  }
 
   // Imperial Architects — The Project stack gains/consumes from ability text
   if (assistDepth === 0 && counterDepth === 0) {
@@ -4252,7 +4321,7 @@ function parseAndApplyEffects(
       'Tactical Advantage', 'Collector', 'Bounty', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
       'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Secrecy', 'Payout',
       'Imperial Approval', 'Information Broker', 'Corruption', 'Debt', 'Dossier', 'Guardian\'s Resolve',
-      'The Project', 'The Project Complete', 'Hostage Scientist'
+      'The Project', 'The Project Complete', 'Hostage Scientist', 'Brotherly Love', 'Scum'
     ]);
 
     // Debuffs
@@ -4304,7 +4373,8 @@ function parseAndApplyEffects(
       'Tactical Data', 'Tactical Advantage', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
       'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Unconventional Tactics',
       'Imperial Approval', 'Ordered Fire', 'Council Guidance', "Guardian's Resolve", 'Inspired',
-      'Whiteout', 'Ultimate Stance', 'Protect the Child', 'The Project', 'The Project Complete', 'Hostage Scientist'
+      'Whiteout', 'Ultimate Stance', 'Protect the Child', 'The Project', 'The Project Complete', 'Hostage Scientist',
+      'Brotherly Love', 'Scum'
     ].forEach(bf => {
       const bfTag = bf.toLowerCase().replace(/ /g, '_');
       if (effect.includes(bf) || effect.includes(bfTag)) {
@@ -5822,6 +5892,8 @@ export function applySquadPassives(state: CombatState, teamToApply?: 'player' | 
   customSquadPassives.forEach(hook => hook(state));
   // Install description-parsed leader/unique passives (idempotent)
   installDescPassives(state);
+  // Install BH Payout / Scum / Traps / Brotherly Love / Endless Legion / Howzer
+  installKitConditions(state);
 
   const teams: ('player' | 'enemy')[] = teamToApply && teamToApply !== 'all' ? [teamToApply] : ['player', 'enemy'];
   
