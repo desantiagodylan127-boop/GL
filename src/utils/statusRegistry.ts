@@ -117,7 +117,7 @@ export const STATUS_DEFINITIONS: Record<string, {
     'Contract': { name: 'Contract', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Bounty Hunter Contract.' },
     'Bounty': { name: 'Bounty', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Bounty Hunter Reward.' },
     'Unleashed': { name: 'Unleashed', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Starkiller Unleashed.' },
-    'Imperial Contract': { name: 'Imperial Contract', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Imperial Remnant Contract.' },
+    'Imperial Contract': { name: 'Imperial Contract', type: 'debuff', stackLimit: 1, flags: ['prevent_cleanse', 'imperial_contract'], statModifiers: {}, desc: 'Marked by Rebel Hunters. Transfers when the holder is defeated. Enables Rebel Hunter Contract synergies.' },
     'Armor Shred': { name: 'Armor Shred', type: 'debuff', stackLimit: 99, flags: ['prevent_cleanse'], statModifiers: { defense: 0.5 }, desc: 'Defense permanently reduced.' },
     'Debt': { name: 'Debt', type: 'debuff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Hondo mechanic.' },
     'Corruption': { name: 'Corruption', type: 'debuff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Corruption mechanic.' },

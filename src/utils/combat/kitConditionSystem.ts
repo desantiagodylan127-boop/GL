@@ -4,6 +4,7 @@
  */
 import { CombatState, CombatUnit, Ability } from '../../types';
 import { applyStatus, checkHasTag, logBattleEvent, hasStatusFlag, executeCombatAction } from '../combatEngine';
+import { earnScum } from './huttContractSystem';
 
 function squadOf(state: CombatState, unit: CombatUnit) {
   return unit.team === 'player' ? state.playerTeam : state.enemyTeam;
@@ -170,9 +171,7 @@ export function onKitTurnStart(state: CombatState, unit: CombatUnit) {
     const ds = ensureDS(unit);
     ds.scumTurns = (ds.scumTurns || 0) + 1;
     if (ds.scumTurns >= 10 && !unit.statuses.some(s => s.name === 'Scum')) {
-      applyStatus(state, unit, 'Scum', 99, false, unit);
-      unit.speed += 50;
-      logBattleEvent(state, `🐒 Scum (Jabba's Pet): Salacious gains +50 Speed!`, 'buff');
+      earnScum(state, unit);
     }
     // Jabba ultimate charge
     const jabba = squadOf(state, unit).find(u => (u.characterId.includes('jabba') || u.characterId === 'jabba_the_hutt') && u.activeInBattle && u.hp > 0);
