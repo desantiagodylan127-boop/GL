@@ -1,0 +1,3 @@
+const { INITIAL_CHARACTERS, normalizeTag } = require("./src/data/characters.ts");
+
+// ... wait, I can just use tsx ...

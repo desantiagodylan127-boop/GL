@@ -1,0 +1,6 @@
+{
+  "name": "Galactic Legends",
+  "description": "A turn-based Star Wars character collector strategy RPG inspired by SWGOH. Features high-fidelity turn-meter based combat, progression layers (Gear, Legend Levels, Relics), Campaign Sectors, Journey Guide, Raids, and an Admin Editor with Gemini-enabled AI kit generation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,855 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Base dark sci-fi background */
+body {
+  background-color: #05050f;
+  color: #e2e8f0;
+}
+
+/* Custom float-up combat text animation */
+@keyframes floatUpFade {
+  0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+  15% { transform: translate(-50%, -20px) scale(1.4); opacity: 1; }
+  30% { transform: translate(-50%, -15px) scale(1); opacity: 1; }
+  70% { transform: translate(-50%, -15px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -45px) scale(0.8); opacity: 0; }
+}
+
+@keyframes slide-out-top {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -150%) scale(1.5); opacity: 0; }
+}
+
+.slide-out-top {
+  animation: slide-out-top 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-combat-float {
+  animation: floatUpFade 1.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes slowOrbit {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+  33% { transform: translate(30px, -50px) scale(1.1); opacity: 0.5; }
+  66% { transform: translate(-20px, 20px) scale(0.9); opacity: 0.4; }
+  100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+}
+
+/* Animated Galaxy Background System */
+.galaxy-bg {
+  position: fixed;
+  inset: 0;
+  background-color: #030308;
+  background-image: 
+    radial-gradient(circle at 10% 40%, rgba(30, 58, 138, 0.25) 0%, transparent 40%),
+    radial-gradient(circle at 90% 20%, rgba(139, 92, 246, 0.2) 0%, transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(20, 184, 166, 0.15) 0%, transparent 50%);
+  z-index: -1;
+  pointer-events: none;
+  animation: galaxyPulse 15s ease-in-out infinite alternate;
+}
+
+.galaxy-bg::after {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%; right: -50%; bottom: -50%;
+  pointer-events: none;
+  background: 
+    radial-gradient(1px 1px at 20px 30px, rgba(200, 230, 255, 0.8), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 40px 70px, rgba(255, 255, 255, 0.7), rgba(0,0,0,0)),
+    radial-gradient(1px 1px at 80px 140px, rgba(150, 200, 255, 0.6), rgba(0,0,0,0)),
+    radial-gradient(1.5px 1.5px at 120px 50px, rgba(230, 240, 255, 0.9), rgba(0,0,0,0));
+  background-size: 250px 250px;
+  animation: slowOrbit 90s linear infinite;
+  opacity: 0.6;
+}
+
+@keyframes galaxyPulse {
+  0% { opacity: 0.8; filter: hue-rotate(0deg); }
+  50% { opacity: 1; filter: hue-rotate(15deg); }
+  100% { opacity: 0.9; filter: hue-rotate(-5deg); }
+}
+
+/* Hologram Scanning Lines */
+.scan-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 255, 255, 0.05) 51%, transparent 51%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.4;
+  animation: scanLineScroll 4s linear infinite;
+}
+
+@keyframes scanLineScroll {
+  from { background-position: 0 0; }
+  to { background-position: 0 40px; }
+}
+
+/* Custom Hologram Panels */
+.holo-panel {
+  background: rgba(10, 15, 30, 0.6);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+  box-shadow: inset 0 0 20px rgba(14, 165, 233, 0.05), 0 4px 15px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+}
+
+.holo-panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.6), transparent);
+}
+
+/* Glow Borders */
+.glow-border {
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.2), inset 0 0 15px rgba(14, 165, 233, 0.05);
+}
+
+.glow-neon {
+  text-shadow: 0 0 5px currentColor, 0 0 10px currentColor;
+}
+
+/* Panel transitions */
+.panel-transition {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.panel-transition:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(14, 165, 233, 0.15), inset 0 0 20px rgba(14, 165, 233, 0.08);
+  border-color: rgba(14, 165, 233, 0.4);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-3px, 2px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, 3px); }
+  80% { transform: translate(2px, -3px); }
+}
+.animate-shake {
+  animation: shake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shakeSmall {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-1px, 1px); }
+  50% { transform: translate(1px, -1px); }
+  75% { transform: translate(-1px, -1px); }
+}
+.animate-shake-small {
+  animation: shakeSmall 0.2s ease-in-out both;
+}
+
+@keyframes shakeLarge {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-8px, 6px); }
+  30% { transform: translate(8px, -6px); }
+  50% { transform: translate(-6px, 8px); }
+  70% { transform: translate(6px, -8px); }
+  90% { transform: translate(-4px, 4px); }
+}
+.animate-shake-large {
+  animation: shakeLarge 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes scanVertical {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100vh); }
+}
+.animate-scan {
+  animation: scanVertical 3s linear infinite;
+}
+
+@keyframes slideDown {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100vh); }
+}
+.animate-slide-down {
+  animation: slideDown 2s ease-in-out forwards;
+}
+
+@keyframes flashDmg {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(2) hue-rotate(-20deg); }
+  100% { filter: brightness(1); }
+}
+.animate-flash-dmg {
+  animation: flashDmg 0.2s ease-out;
+}
+
+@keyframes flashHeal {
+  0% { filter: brightness(1) hue-rotate(0deg); }
+  50% { filter: brightness(1.5) hue-rotate(60deg) saturate(2); }
+  100% { filter: brightness(1) hue-rotate(0deg); }
+}
+.animate-flash-heal {
+  animation: flashHeal 0.3s ease-out;
+}
+
+.environment-kamino-platform { 
+  background: 
+    /* Lightning flash */
+    radial-gradient(circle at 70% 30%, rgba(200, 230, 255, 0.5) 0%, transparent 15%),
+    /* Slanted Rain */
+    repeating-linear-gradient(20deg, transparent 0, transparent 4px, rgba(150, 200, 255, 0.4) 5px, transparent 6px),
+    repeating-linear-gradient(25deg, transparent 0, transparent 7px, rgba(100, 180, 255, 0.2) 8px, transparent 9px),
+    /* Dome Platform foreground */
+    radial-gradient(ellipse 200% 70% at 50% 120%, #0a1122 0%, #152238 35%, transparent 35.5%),
+    /* Midground tall structures */
+    linear-gradient(90deg, transparent 20%, #081120 20%, #101c30 23%, transparent 23%, transparent 75%, #081120 75%, #101c30 80%, transparent 80%),
+    /* Raging ocean */
+    linear-gradient(0deg, #051829 20%, #0f3a59 40%, transparent 40%),
+    /* Deep dark stormy sky */
+    linear-gradient(0deg, #183045 40%, #050a12 100%);
+}
+.environment-kamino-lab { 
+  background: 
+    /* Glowing cloning vats */
+    repeating-linear-gradient(90deg, transparent 0, transparent 15vw, #0284c7 15vw, #0369a1 18vw, transparent 18vw, transparent 35vw),
+    /* Floor */
+    linear-gradient(0deg, #1e293b 0%, #334155 15%, transparent 15.5%),
+    /* Walls and vats base */
+    linear-gradient(90deg, #020617 0%, #0f172a 10%, #020617 12%, transparent 12%, transparent 88%, #020617 88%, #0f172a 90%, #020617 100%),
+    /* Subdued blue lab lighting */
+    linear-gradient(0deg, #0f172a 15%, #020617 100%);
+}
+.environment-kamino-hangar { 
+  background: 
+    /* Huge hangar opening to storm */
+    radial-gradient(ellipse 200% 100% at 50% 100%, #1e293b 0%, #0f172a 20%, transparent 20.5%),
+    linear-gradient(90deg, #020617 0%, #0f172a 25%, transparent 25%, transparent 75%, #0f172a 75%, #020617 100%),
+    /* Slanted Rain seen through the opening */
+    repeating-linear-gradient(20deg, transparent 0, transparent 4px, rgba(150, 200, 255, 0.1) 5px, transparent 6px),
+    /* Sky through opening */
+    linear-gradient(0deg, #13243d 20%, #050a12 90%);
+}
+.environment-coruscant-underworld { 
+  background: 
+    /* Green speeders traffic lanes */
+    repeating-linear-gradient(90deg, transparent 0, transparent 50px, rgba(50, 255, 120, 0.4) 52px, transparent 55px),
+    repeating-linear-gradient(90deg, transparent 20px, transparent 100px, rgba(50, 200, 255, 0.3) 102px, transparent 105px),
+    /* Low-detail green city glow spots */
+    radial-gradient(circle at 15% 45%, rgba(50, 255, 120, 0.15) 0%, transparent 15vw),
+    radial-gradient(circle at 85% 75%, rgba(50, 200, 255, 0.2) 0%, transparent 20vw),
+    /* Industrial Undercity Pipelines & Foreground Floor */
+    radial-gradient(ellipse 200% 64% at 50% 120%, #020c0f 0%, #06191c 40%, transparent 40.5%),
+    /* Midground dark structural frames */
+    linear-gradient(90deg, transparent 8%, #051114 8%, #0b2226 10%, transparent 10%, transparent 90%, #051114 90%, #0b2226 92%, transparent 92%),
+    /* Distant murky undercity dark teal skyline */
+    linear-gradient(0deg, #021210 15%, #041a18 45%, #01080a 100%);
+}
+
+.environment-coruscant-jedi-temple, .environment-coruscant-temple { 
+  background: 
+    /* Peaceful dawn sun beam */
+    radial-gradient(circle at 50% 35%, rgba(180, 200, 255, 0.35) 0%, transparent 45%),
+    /* Towring central peak of the Jedi Temple */
+    linear-gradient(90deg, transparent 48.5%, #181d3d 48.5%, #2a315e 50%, #181d3d 51.5%, transparent 51.5%),
+    /* Secondary background spires list */
+    linear-gradient(90deg, transparent 25%, #131735 25%, #1b2047 26.5%, transparent 26.5%, transparent 73.5%, #131735 73.5%, #1b2047 75%, transparent 75%),
+    /* Distant spires list */
+    linear-gradient(90deg, transparent 12%, #0e1129 12%, #14193d 13.5%, transparent 14%, transparent 86%, #0e1129 86%, #14193d 87.5%, transparent 88%),
+    /* Majestic Temple pillars on sides framing the view */
+    linear-gradient(90deg, #0d0f21 0%, #151833 3.5%, #0d0f21 4.5%, transparent 4.5%, transparent 95.5%, #0d0f21 95.5%, #151833 96.5%, #0d0f21 100%),
+    /* Holy starry lilac and navy sky */
+    linear-gradient(0deg, #322f5c 10%, #1c1a38 45%, #080816 100%);
+}
+
+.environment-coruscant-senate, .environment-coruscant-city { 
+  background: 
+    /* Red-orange traffic lanes */
+    repeating-linear-gradient(90deg, transparent 0, transparent 40px, rgba(255, 100, 50, 0.3) 42px, transparent 44px),
+    /* Distant metropolis skyline silhouettes */
+    repeating-linear-gradient(90deg, transparent 1vw, #100609 1vw, #1d0912 3.5vw, transparent 3.5vw, transparent 12vw),
+    repeating-linear-gradient(90deg, transparent 6vw, #180911 6vw, #240c1a 9vw, transparent 9vw, transparent 15vw),
+    /* Grand executive chambers pillars left and right */
+    linear-gradient(90deg, #180005 0%, #30020a 5%, #180005 6%, transparent 6%, transparent 94%, #180005 94%, #30020a 95%, #180005 100%),
+    /* Deep red sunset of Coruscant city dome */
+    linear-gradient(0deg, #d62828 0%, #5c0d1e 35%, #22030f 75%, #090108 100%);
+}
+.environment-ryloth-canyon { 
+  background: 
+    radial-gradient(ellipse 100% 120% at 0% 100%, #1c1410 0%, #1c1410 40%, transparent 40.5%),
+    radial-gradient(ellipse 100% 150% at 100% 100%, #301f15 0%, #301f15 35%, transparent 35.5%),
+    radial-gradient(ellipse 120% 120% at 50% 100%, #4a2e1d 0%, #4a2e1d 30%, transparent 30.5%),
+    linear-gradient(0deg, #7a4628 30%, #2b1d24 70%, #100b14 100%);
+}
+.environment-ryloth-outpost { 
+  background: 
+    linear-gradient(90deg, #1c1410 0%, #301f15 10%, #1c1410 15%, transparent 15%, transparent 85%, #1c1410 85%, #301f15 90%, #1c1410 100%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 4px, rgba(200, 150, 100, 0.1) 5px, transparent 6px),
+    linear-gradient(0deg, #2b1d24 0%, #4a2e1d 30%, transparent 30.5%),
+    linear-gradient(0deg, #7a4628 30%, #2b1d24 70%, #100b14 100%);
+}
+.environment-ryloth-tunnels { 
+  background: 
+    radial-gradient(ellipse 150% 80% at 50% 100%, #1c1410 0%, #2b1d24 40%, transparent 40.5%),
+    radial-gradient(circle at 50% 40%, rgba(200, 150, 100, 0.05) 0%, transparent 20%),
+    linear-gradient(0deg, #100b14 0%, #1c1410 100%);
+}
+.environment-mustafar-lava, .environment-mustafar-refinery, .environment-mustafar-forge { 
+  background: 
+    /* Lava falls */
+    repeating-linear-gradient(90deg, transparent 0, transparent 20vw, #ff4d00 20vw, #ff1100 22vw, transparent 22vw, transparent 45vw),
+    /* Foreground black rocks */
+    linear-gradient(105deg, #0f0502 0%, #0f0502 20%, transparent 20.5%),
+    linear-gradient(-105deg, #0a0301 0%, #0a0301 25%, transparent 25.5%),
+    /* Lava floor */
+    linear-gradient(0deg, #ff2200 0%, #880000 20%, transparent 20.5%),
+    /* Sky and smoke */
+    linear-gradient(0deg, #330500 20%, #110000 60%, #000000 100%);
+}
+.environment-hoth-blizzard, .environment-hoth-base, .environment-hoth-cave { 
+  background: 
+    /* Snow dunes */
+    radial-gradient(ellipse 150% 100% at 20% 120%, #dce8f5 0%, #dce8f5 35%, transparent 35.5%),
+    radial-gradient(ellipse 120% 100% at 80% 120%, #b8d2eb 0%, #b8d2eb 30%, transparent 30.5%),
+    /* Ice walls */
+    linear-gradient(60deg, #8ba8cb 0%, #8ba8cb 20%, transparent 20.5%),
+    linear-gradient(-60deg, #7496b8 0%, #7496b8 25%, transparent 25.5%),
+    /* Sky */
+    linear-gradient(0deg, #a1c4fd 0%, #476d9c 100%);
+}
+.environment-tatooine-dunes, .environment-tatooine-market, .environment-tatooine-junkyard { 
+  background: 
+    /* Sun 1 */
+    radial-gradient(circle at 60% 40%, #fff8d6 0%, #ffde7c 8%, transparent 8.5%),
+    /* Sun 2 */
+    radial-gradient(circle at 75% 30%, #ffe6a0 0%, #ffc060 6%, transparent 6.5%),
+    /* Foreground Dune */
+    radial-gradient(ellipse 160% 120% at 20% 120%, #e0ac69 0%, #e0ac69 40%, transparent 40.5%),
+    /* Background Dune */
+    radial-gradient(ellipse 140% 100% at 80% 115%, #c89553 0%, #c89553 35%, transparent 35.5%),
+    /* Sky */
+    linear-gradient(0deg, #d3a473 30%, #89a8c7 60%, #305882 100%);
+}
+.environment-endor-forest, .environment-endor-bunker, .environment-endor-night { 
+  background: 
+    /* Trunks */
+    repeating-linear-gradient(90deg, transparent 0%, transparent 10%, #151b10 10%, #151b10 18%, transparent 18%, transparent 40%, #0d120a 40%, #0d120a 45%, transparent 45%),
+    /* Canopy / Fog base */
+    linear-gradient(0deg, #091206 0%, #152610 20%, transparent 40%),
+    /* Background Trees */
+    repeating-linear-gradient(90deg, transparent 5%, #182b14 5%, #182b14 10%, transparent 10%, transparent 30%, #162413 30%, #162413 33%, transparent 33%),
+    /* Deep forest sky / fog */
+    linear-gradient(0deg, #2a3d21 0%, #1e2b17 50%, #0e170b 100%);
+}
+.environment-geonosis-factory { 
+  background: 
+    radial-gradient(circle at 70% 30%, #eebb88 0%, #cc7744 15%, transparent 30%),
+    repeating-linear-gradient(90deg, transparent 0, transparent 40px, rgba(238, 187, 136, 0.1) 42px, transparent 44px),
+    linear-gradient(90deg, transparent 15%, #4a2110 15%, #612d14 30%, transparent 30%, transparent 70%, #612d14 70%, #4a2110 85%, transparent 85%),
+    linear-gradient(0deg, #4a2110 0%, #854020 30%, transparent 30.5%),
+    linear-gradient(0deg, #522718 30%, #854020 100%);
+}
+.environment-geonosis-arena { 
+  background: 
+    radial-gradient(ellipse 200% 40% at 50% 30%, #4a2110 0%, #854020 30%, transparent 30.5%),
+    linear-gradient(90deg, #612d14 0%, #4a2110 5%, transparent 5%, transparent 95%, #4a2110 95%, #612d14 100%),
+    repeating-radial-gradient(ellipse at 50% 30%, transparent 0, transparent 4vw, rgba(0, 0, 0, 0.2) 4.5vw, transparent 5vw),
+    linear-gradient(0deg, #c2673a 20%, #522718 100%);
+}
+.environment-geonosis-hive { 
+  background: 
+    radial-gradient(circle at 30% 40%, rgba(200, 100, 50, 0.4) 0%, transparent 5%),
+    radial-gradient(ellipse 150% 120% at 50% 100%, #150803 0%, #291106 35%, transparent 35.5%),
+    repeating-radial-gradient(circle at 50% 50%, transparent 0, transparent 20px, rgba(133, 64, 32, 0.1) 22px, transparent 25px),
+    linear-gradient(0deg, #150803 0%, #0a0401 100%);
+}
+.environment-felucia-forest, .environment-felucia-swamp, .environment-felucia-glow { 
+  background: 
+    /* Spores */
+    radial-gradient(circle at 30% 40%, rgba(100, 255, 200, 0.4) 0%, transparent 5%),
+    radial-gradient(circle at 70% 30%, rgba(150, 200, 255, 0.4) 0%, transparent 4%),
+    radial-gradient(circle at 50% 60%, rgba(50, 255, 100, 0.3) 0%, transparent 8%),
+    /* Giant Bulb Plants (Stalks + Bulbs) */
+    radial-gradient(ellipse 20% 40% at 25% 80%, #0c2419 0%, #0c2419 40%, transparent 40.5%),
+    radial-gradient(ellipse 30% 50% at 85% 70%, #133324 0%, #133324 35%, transparent 35.5%),
+    /* Fog/Ground */
+    linear-gradient(0deg, #050f0a 0%, #0f261a 20%, transparent 40%),
+    /* Sky */
+    linear-gradient(0deg, #1b3829 20%, #0c1a13 100%);
+  box-shadow: inset 0 0 100px rgba(50,255,150,0.15);
+}
+.environment-exegol-temple, .environment-exegol-storm, .environment-exegol-throne { 
+  background: 
+    /* Lightning bolt */
+    linear-gradient(195deg, transparent 40%, rgba(150, 180, 255, 0.6) 41%, rgba(200, 220, 255, 0.9) 42%, transparent 43%),
+    /* Symmetrical Monoliths */
+    linear-gradient(90deg, #000 0%, #000 15%, transparent 15%, transparent 85%, #000 85%, #000 100%),
+    /* Ground block */
+    linear-gradient(0deg, #000 0%, #000 10%, transparent 10%),
+    /* Central Temple */
+    linear-gradient(90deg, transparent 35%, #050711 35%, #050711 65%, transparent 65%),
+    /* Bleak stormy sky */
+    linear-gradient(0deg, #111a3b 0%, #0a0e1c 50%, #020308 100%);
+}
+
+.environment-dark-metropolis {
+  background:
+    linear-gradient(90deg, #181d26 0%, #181d26 15%, transparent 15.5%),
+    linear-gradient(90deg, transparent 80%, #0b0f17 80.5%, #0b0f17 100%),
+    linear-gradient(0deg, #181d26 0%, #181d26 40%, transparent 40.5%),
+    linear-gradient(0deg, #0b0f17 0%, #0b0f17 55%, transparent 55.5%),
+    linear-gradient(0deg, #05080d 0%, #05080d 70%, transparent 70.5%),
+    linear-gradient(0deg, #2b0000 0%, #0a0a0a 100%);
+}
+.environment-capital-ship {
+  background:
+    radial-gradient(circle at 50% 120%, #173d6b 0%, #173d6b 30%, transparent 30.5%),
+    linear-gradient(90deg, #0a0c10 0%, #0a0c10 10%, transparent 10.5%, transparent 89.5%, #0a0c10 90%, #0a0c10 100%),
+    linear-gradient(0deg, #0a0c10 0%, #0a0c10 15%, transparent 15.5%, transparent 84.5%, #0a0c10 85%, #0a0c10 100%),
+    radial-gradient(circle at 70% 30%, #fff 0%, #fff 1%, transparent 1.5%),
+    radial-gradient(circle at 20% 60%, #fff 0%, #fff 1%, transparent 1.5%),
+    radial-gradient(circle at 80% 70%, #fff 0%, #fff 1%, transparent 1.5%),
+    radial-gradient(circle at 30% 20%, #fff 0%, #fff 1%, transparent 1.5%),
+    linear-gradient(0deg, #000 0%, #040814 100%);
+}
+.environment-imperial-fort {
+  background:
+    linear-gradient(90deg, transparent 30%, #334155 30%, #334155 70%, transparent 70%),
+    linear-gradient(0deg, #334155 0%, #334155 50%, transparent 50.5%),
+    linear-gradient(10deg, #e2e8f0 0%, #e2e8f0 25%, transparent 25.5%),
+    linear-gradient(-5deg, #cbd5e1 0%, #cbd5e1 35%, transparent 35.5%),
+    linear-gradient(0deg, #94a3b8 0%, #64748b 100%);
+}
+.environment-underwater-facility {
+  background:
+    linear-gradient(90deg, #0f172a 0%, #0f172a 10%, transparent 10.5%, transparent 89.5%, #0f172a 90%, #0f172a 100%),
+    linear-gradient(0deg, #020617 0%, #020617 15%, transparent 15.5%),
+    linear-gradient(85deg, transparent 50%, #0f172a 50.5%, #0f172a 80%, transparent 80.5%),
+    linear-gradient(-80deg, #020617 0%, #020617 40%, transparent 40.5%),
+    linear-gradient(0deg, #082f49 0%, #0c4a6e 100%);
+}
+.environment-desert-outback {
+  background:
+    radial-gradient(circle at 80% 40%, #fcd34d 0%, #fcd34d 15%, transparent 15.5%),
+    linear-gradient(15deg, #7c2d12 0%, #7c2d12 25%, transparent 25.5%),
+    linear-gradient(-15deg, #9a3412 0%, #9a3412 35%, transparent 35.5%),
+    linear-gradient(0deg, #fdba74 0%, #ea580c 100%);
+}
+.environment-death-star {
+  background:
+    radial-gradient(circle at 50% 50%, #10b981 0%, #047857 5%, transparent 20%),
+    linear-gradient(0deg, #3f3f46 0%, #3f3f46 5%, transparent 5.5%, transparent 45%, #3f3f46 45.5%, #3f3f46 50%, transparent 50.5%),
+    linear-gradient(90deg, #18181b 0%, #18181b 20%, transparent 20.5%, transparent 79.5%, #18181b 80%, #18181b 100%),
+    linear-gradient(0deg, #09090b 0%, #18181b 100%);
+}
+.environment-beach-scarif {
+  background:
+    linear-gradient(90deg, transparent 45%, #3f3f46 45%, #3f3f46 55%, transparent 55%),
+    linear-gradient(0deg, #06b6d4 0%, #06b6d4 25%, transparent 25.5%),
+    linear-gradient(5deg, #fef08a 0%, #fef08a 15%, transparent 15.5%),
+    linear-gradient(0deg, #38bdf8 0%, #0284c7 100%);
+}
+.environment-mandalore-city {
+  background:
+    radial-gradient(circle at 50% 100%, transparent 0%, transparent 60%, #94a3b8 60.5%, #94a3b8 62%, transparent 62.5%),
+    linear-gradient(3deg, #4b5563 0%, #4b5563 35%, transparent 35.5%),
+    linear-gradient(-4deg, #374151 0%, #374151 45%, transparent 45.5%),
+    linear-gradient(0deg, #9ca3af 0%, #64748b 100%);
+}
+.environment-mandalore-ruins, .environment-mandalore-forge, .environment-mandalore {
+  background:
+     linear-gradient(to top, rgba(50, 10, 0, 0.6) 10%, transparent),
+     linear-gradient(0deg, #201010 0%, #301515 100%);
+}
+.environment-morvek-wasteland, .environment-morvek-trenches, .environment-morvek-base, .environment-morvek {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(100, 100, 100, 0.4) 0%, transparent 20%),
+    linear-gradient(170deg, transparent 50%, rgba(50, 50, 50, 0.3) 100%),
+    linear-gradient(-5deg, #1f2937 0%, #1f2937 20%, transparent 20.5%),
+    linear-gradient(10deg, #374151 0%, #374151 30%, transparent 30.5%),
+    linear-gradient(0deg, #4b5563 0%, #111827 100%);
+}
+.environment-peridea-plains, .environment-peridea-ruins, .environment-peridea-keep, .environment-peridea {
+  background:
+    radial-gradient(circle at 70% 30%, rgba(163, 184, 153, 0.5) 0%, transparent 15%),
+    linear-gradient(5deg, #2d452b 0%, #2d452b 20%, transparent 20.5%),
+    linear-gradient(-3deg, #1e3324 0%, #1e3324 35%, transparent 35.5%),
+    linear-gradient(1deg, #374151 0%, #374151 45%, transparent 45.5%),
+    linear-gradient(0deg, #4b5563 0%, #1f2937 100%);
+}
+.environment-lothal-city, .environment-lothal-plains, .environment-lothal-temple, .environment-lothal {
+  background:
+    radial-gradient(circle at 40% 60%, rgba(200, 200, 255, 0.2) 0%, transparent 40%),
+    linear-gradient(2deg, #4ade80 0%, #4ade80 25%, transparent 25.5%),
+    linear-gradient(-6deg, #22c55e 0%, #22c55e 35%, transparent 35.5%),
+    linear-gradient(0deg, #60a5fa 0%, #1e3a8a 100%);
+}
+
+.environment-ryloth { background: radial-gradient(circle at 50% 50%, rgba(200, 100, 50, 0.15) 0%, rgba(20, 10, 5, 0.9) 100%); }
+.environment-kamino { background: radial-gradient(circle at 50% 50%, rgba(50, 100, 200, 0.2) 0%, rgba(5, 10, 25, 0.9) 100%); }
+/* Legacy fallbacks */
+.environment-hoth { background: radial-gradient(circle at 50% 50%, rgba(200, 230, 255, 0.15) 0%, rgba(10, 20, 40, 0.8) 100%); }
+.environment-umbara { background: radial-gradient(circle at 50% 50%, rgba(100, 50, 150, 0.1) 0%, rgba(5, 5, 10, 0.9) 100%); }
+.environment-scarif { background: radial-gradient(circle at 50% 50%, rgba(50, 150, 200, 0.2) 0%, rgba(10, 15, 25, 0.9) 100%); }
+.environment-coruscant { background: radial-gradient(circle at 50% 50%, rgba(200, 50, 100, 0.15) 0%, rgba(15, 10, 20, 0.9) 100%); }
+.environment-mandalore { background: radial-gradient(circle at 50% 50%, rgba(255, 100, 50, 0.15) 0%, rgba(20, 10, 10, 0.9) 100%); }
+.environment-peridea { background: radial-gradient(circle at 50% 50%, rgba(50, 150, 50, 0.1) 0%, rgba(10, 15, 10, 0.9) 100%); }
+.environment-morvek { background: radial-gradient(circle at 50% 50%, rgba(100, 100, 100, 0.2) 0%, rgba(15, 15, 15, 0.9) 100%); }
+.environment-lothal { background: radial-gradient(circle at 50% 50%, rgba(100, 255, 100, 0.15) 0%, rgba(10, 25, 10, 0.9) 100%); }
+
+.hologram-overlay {
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 255, 255, 0.05) 0px,
+    rgba(0, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  pointer-events: none;
+}
+
+@keyframes floatGentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+.float-gentle {
+  animation: floatGentle 4s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+/* Glowing text utilities */
+.text-glow-amber {
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+.text-glow-emerald {
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+.text-glow-cyan {
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+}
+.text-glow-purple {
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(5, 5, 15, 0.8);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(14, 165, 233, 0.3);
+  border-radius: 6px;
+  border: 1px solid rgba(14, 165, 233, 0.1);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(14, 165, 233, 0.6);
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+
+
+/* New Planet Backgrounds */
+.environment-jakku-dunes, .environment-jakku-graveyard {
+  background: 
+    radial-gradient(circle at 60% 40%, #ffebcd 0%, #d8b384 15%, transparent 15.5%),
+    radial-gradient(ellipse 160% 120% at 20% 120%, #c49c71 0%, #c49c71 40%, transparent 40.5%),
+    linear-gradient(0deg, #b08d6a 20%, #6fa0c4 60%, #4682b4 100%);
+}
+
+.environment-takodana-forest, .environment-takodana-castle {
+  background: 
+    repeating-linear-gradient(90deg, transparent 0%, transparent 8%, #1a2f1c 8%, #1a2f1c 15%, transparent 15%, transparent 35%, #152617 35%, #152617 40%, transparent 40%),
+    linear-gradient(0deg, #103314 0%, #17421f 25%, transparent 40%),
+    linear-gradient(0deg, #2b3a4a 0%, #345e80 40%, #578cb5 100%);
+}
+
+.environment-utapau-sinkhole {
+  background: 
+    linear-gradient(90deg, #3d3b38 0%, #3d3b38 20%, transparent 25%, transparent 75%, #302e2a 80%, #302e2a 100%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 2vw, #2a2825 2vw, #2a2825 3vw, transparent 3vw, transparent 10vw),
+    linear-gradient(0deg, #292823 0%, #4a453c 30%, transparent 50%),
+    linear-gradient(0deg, #575249 30%, #8ca6b8 100%);
+}
+
+.environment-utapau-base {
+  background: 
+    /* Glowing red military conduits */
+    repeating-linear-gradient(90deg, transparent 0, transparent 60px, rgba(239, 68, 68, 0.4) 62px, transparent 65px),
+    /* Heavy metallic structural struts */
+    linear-gradient(90deg, #181d22 0%, #2a3138 6%, #181d22 12%, transparent 12%, transparent 88%, #181d22 88%, #2a3138 94%, #181d22 100%),
+    /* Base internal lights grid */
+    repeating-linear-gradient(180deg, transparent 0, transparent 15vh, rgba(14, 165, 233, 0.1) 15.5vh, transparent 16vh),
+    /* Interior heavy dark grey industrial layout */
+    linear-gradient(0deg, #090b0d 15%, #14191f 45%, #050608 100%);
+}
+
+.environment-utapau-springs {
+  background: 
+    /* Warm steam/fog overlay */
+    radial-gradient(circle at 50% 64%, rgba(56, 189, 248, 0.15) 0%, transparent 50%),
+    /* Subterranean neon-cyan hot pools glowing from below */
+    radial-gradient(ellipse 130% 50% at 50% 88%, #083344 0%, #0369a1 40%, transparent 60%),
+    /* Rock cavern archways framing the springs */
+    radial-gradient(ellipse 200% 60% at 50% -10%, transparent 40%, #1c1917 40.5%),
+    /* Dark rocky cave base gradient */
+    linear-gradient(0deg, #0c0a09 10%, #1c1917 50%, #080707 100%);
+}
+
+.environment-sullust-volcano {
+  background: 
+    repeating-linear-gradient(90deg, transparent 0, transparent 15vw, #ff3300 15vw, #cc0000 17vw, transparent 17vw, transparent 40vw),
+    linear-gradient(110deg, #1f1a18 0%, #1f1a18 30%, transparent 30.5%),
+    linear-gradient(-110deg, #171311 0%, #171311 25%, transparent 25.5%),
+    linear-gradient(0deg, #380800 0%, #1f1816 30%, transparent 30.5%),
+    linear-gradient(0deg, #24110e 20%, #472d29 60%, #1a1615 100%);
+}
+
+.environment-yavin-ruins, .environment-yavin-jungle {
+  background: 
+    linear-gradient(90deg, transparent 30%, #2f3325 30%, #2f3325 70%, transparent 70%),
+    repeating-linear-gradient(90deg, transparent 0%, transparent 5%, #1a2113 5%, #1a2113 12%, transparent 12%, transparent 45%, #141c0e 45%, #141c0e 48%, transparent 48%),
+    linear-gradient(0deg, #0e170a 0%, #182611 30%, transparent 50%),
+    radial-gradient(circle at 75% 30%, #cc3333 0%, #801515 8%, transparent 8.5%),
+    linear-gradient(0deg, #2f4520 20%, #769c9b 100%);
+}
+
+.environment-christophsis-city {
+  background: 
+    repeating-linear-gradient(90deg, transparent 0, transparent 50px, rgba(0, 255, 200, 0.4) 52px, transparent 54px),
+    linear-gradient(0deg, #021a24 0%, #06232e 20%, transparent 20%),
+    repeating-linear-gradient(90deg, transparent 2vw, #051921 2vw, #051921 6vw, transparent 6vw, transparent 15vw),
+    repeating-linear-gradient(90deg, transparent 8vw, #082836 8vw, #082836 11vw, transparent 11vw, transparent 13vw),
+    linear-gradient(0deg, #113f47 15%, #0d2836 40%, #050e14 100%);
+}
+
+.environment-naboo-plains, .environment-naboo-palace {
+  background: 
+    radial-gradient(ellipse 180% 100% at 50% 120%, #468c46 0%, #468c46 35%, transparent 35.5%),
+    radial-gradient(ellipse 150% 100% at 80% 110%, #6fb56f 0%, #6fb56f 30%, transparent 30.5%),
+    linear-gradient(0deg, #376e37 0%, #90d690 30%, transparent 30.5%),
+    linear-gradient(0deg, #6aa5d9 0%, #1b538f 100%);
+}
+
+.environment-mon-cala-ocean {
+  background: 
+    radial-gradient(ellipse 200% 70% at 50% 110%, #0c2b42 0%, #0c2b42 35%, transparent 35.5%),
+    linear-gradient(90deg, transparent 20%, #071f33 20%, #071f33 25%, transparent 25%, transparent 70%, #071f33 70%, #071f33 75%, transparent 75%),
+    linear-gradient(0deg, #09375e 0%, #1865a8 40%, transparent 40%),
+    linear-gradient(0deg, #244670 30%, #528fc4 100%);
+}
+
+.environment-mos-eisley-streets {
+  background:
+    radial-gradient(circle at 75% 25%, #fffae0 0%, #ffd8a8 10%, transparent 11%),
+    linear-gradient(170deg, transparent 50%, rgba(251, 191, 36, 0.2) 100%),
+    linear-gradient(-3deg, #c2410c 0%, #c2410c 22%, transparent 22.5%),
+    linear-gradient(4deg, #ea580c 0%, #ea580c 35%, transparent 35.5%),
+    linear-gradient(0deg, #fbbf24 0%, #b45309 100%);
+}
+
+.environment-mos-eisley-docking-bay-94 {
+  background:
+    radial-gradient(ellipse 150% 80% at 50% 100%, transparent 40%, #451a03 40.5%, #451a03 48%, transparent 48.5%),
+    linear-gradient(0deg, #170b02 0%, #3a1c05 45%, #7c2d12 100%);
+}
+
+.environment-death-star-hangar {
+  background:
+    repeating-linear-gradient(90deg, transparent 0, transparent 40px, rgba(239, 68, 68, 0.4) 42px, transparent 45px),
+    linear-gradient(90deg, #18181b 0%, #27272a 10%, #18181b 20%, transparent 20.5%, transparent 79.5%, #18181b 80%, #27272a 90%, #18181b 100%),
+    linear-gradient(0deg, #09090b 20%, #1c1917 60%, #09090b 100%);
+}
+
+.environment-star-destroyer-bridge {
+  background:
+    /* Stars outside viewport */
+    radial-gradient(circle at 15% 20%, #ffffff 0.5px, transparent 1.5px),
+    radial-gradient(circle at 35% 45%, #ffffff 0.5px, transparent 1.5px),
+    radial-gradient(circle at 65% 15%, #ffffff 0.5px, transparent 1.5px),
+    radial-gradient(circle at 85% 65%, #ffffff 0.5px, transparent 1.5px),
+    /* Viewport outline */
+    linear-gradient(135deg, transparent 40%, #0f172a 40.5%, #1e293b 43%, transparent 43.5%),
+    linear-gradient(-135deg, transparent 40%, #0f172a 40.5%, #1e293b 43%, transparent 43.5%),
+    /* Console lighting indicators */
+    repeating-linear-gradient(90deg, transparent 0, transparent 80px, rgba(59, 130, 246, 0.3) 82px, transparent 85px),
+    linear-gradient(0deg, #020617 10%, #0f172a 50%, #020617 100%);
+}
+
+.environment-atollon {
+  background:
+    /* Twilght dual suns */
+    radial-gradient(circle at 25% 30%, #ffd166 0%, transparent 12%),
+    radial-gradient(circle at 35% 40%, #f72585 0%, transparent 15%),
+    /* Strange rock spires of Atollon */
+    linear-gradient(110deg, transparent 70%, #1a0f2e 70.5%, #1a0f2e 85%, transparent 85.5%),
+    linear-gradient(-70deg, transparent 65%, #0d061a 65.5%, #0d061a 75%, transparent 75.5%),
+    /* Ground & Sky */
+    linear-gradient(0deg, #2b0c36 0%, #4a154b 25%, #1a0933 60%, #0c021f 100%);
+}
+
+.environment-imperial-palace {
+  background:
+    /* Hanging Royal Red banners */
+    linear-gradient(90deg, transparent 15%, #7f1d1d 15%, #7f1d1d 22%, transparent 22%, transparent 78%, #7f1d1d 78%, #7f1d1d 85%, transparent 85%),
+    /* Royal Imperial Gold insignia glow */
+    radial-gradient(circle at 50% 30%, rgba(234, 179, 8, 0.15) 0%, transparent 40%),
+    /* Sleek black/red polished marble floor and pillar structure */
+    linear-gradient(0deg, #110000 0%, #1e0000 35%, #000000 100%);
+}
+
+/* New Journey Battle Environments */
+.environment-tatooine-dune-sea {
+  background:
+    radial-gradient(circle at 80% 30%, #fff7ed 0%, #ffedd5 8%, transparent 9%),
+    radial-gradient(circle at 65% 35%, #fef3c7 0%, #fde68a 12%, transparent 13%),
+    linear-gradient(175deg, transparent 40%, #c2410c 40.5%),
+    linear-gradient(-175deg, transparent 50%, #9a3412 50.5%),
+    linear-gradient(0deg, #ea580c 0%, #fbbf24 100%);
+}
+
+.environment-jabbas-palace {
+  background:
+    radial-gradient(ellipse 180% 100% at 50% 100%, transparent 40%, #27160c 40.5%, #1c0f08 48%, transparent 48.5%),
+    linear-gradient(0deg, #120904 0%, #2d190b 45%, #45220a 100%);
+}
+
+.environment-mos-espa-sanctuary {
+  background:
+    radial-gradient(circle at 50% 30%, #fffbeb 0%, #fef3c7 15%, transparent 16%),
+    linear-gradient(-5deg, #b45309 0%, #b45309 25%, transparent 25.5%),
+    linear-gradient(3deg, #d97706 0%, #d97706 35%, transparent 35.5%),
+    linear-gradient(0deg, #f59e0b 0%, #fed7aa 100%);
+}
+
+.environment-christophsis-city, .environment-christophsis {
+  background: 
+    repeating-linear-gradient(90deg, transparent 0, transparent 50px, rgba(0, 255, 200, 0.4) 52px, transparent 54px),
+    linear-gradient(0deg, #021a24 0%, #06232e 20%, transparent 20%),
+    repeating-linear-gradient(90deg, transparent 2vw, #051921 2vw, #051921 6vw, transparent 6vw, transparent 15vw),
+    repeating-linear-gradient(90deg, transparent 8vw, #082836 8vw, #082836 11vw, transparent 11vw, transparent 13vw),
+    linear-gradient(0deg, #113f47 15%, #0d2836 40%, #050e14 100%);
+}
+
+.environment-utapau-sinkhole, .environment-utapau {
+  background: 
+    linear-gradient(90deg, #3d3b38 0%, #3d3b38 20%, transparent 25%, transparent 75%, #302e2a 80%, #302e2a 100%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 2vw, #2a2825 2vw, #2a2825 3vw, transparent 3vw, transparent 10vw),
+    linear-gradient(0deg, #292823 0%, #4a453c 30%, transparent 50%),
+    linear-gradient(0deg, #575249 30%, #8ca6b8 100%);
+}
+
+.environment-mygeeto {
+  background:
+    repeating-linear-gradient(45deg, transparent 0, transparent 80px, rgba(239, 68, 68, 0.15) 82px, transparent 85px),
+    linear-gradient(175deg, transparent 60%, #1e293b 60.5%),
+    linear-gradient(0deg, #0f172a 0%, #334155 40%, #cbd5e1 100%);
+}
+
+.environment-utapau-base, .environment-utapau-command {
+  background: 
+    repeating-linear-gradient(90deg, transparent 0, transparent 60px, rgba(239, 68, 68, 0.4) 62px, transparent 65px),
+    linear-gradient(90deg, #181d22 0%, #2a3138 6%, #181d22 12%, transparent 12%, transparent 88%, #181d22 88%, #2a3138 94%, #181d22 100%),
+    repeating-linear-gradient(180deg, transparent 0, transparent 15vh, rgba(14, 165, 233, 0.1) 15.5vh, transparent 16vh),
+    linear-gradient(0deg, #090b0d 15%, #14191f 45%, #050608 100%);
+}
+
+.environment-hypori {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(220, 38, 38, 0.2) 0%, transparent 25%),
+    linear-gradient(170deg, transparent 50%, rgba(30, 30, 30, 0.5) 100%),
+    linear-gradient(-3deg, #18181b 0%, #18181b 30%, transparent 30.5%),
+    linear-gradient(0deg, #27272a 0%, #09090b 100%);
+}
+
+.environment-malevolence {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.25) 0%, transparent 35%),
+    repeating-linear-gradient(90deg, transparent 0, transparent 100px, rgba(168, 85, 247, 0.3) 102px, transparent 105px),
+    linear-gradient(90deg, #090514 0%, #180f2d 8%, #090514 15%, transparent 15%, transparent 85%, #090514 85%, #180f2d 92%, #090514 100%),
+    linear-gradient(0deg, #03010a 15%, #0d061e 45%, #020105 100%);
+}
+
+.environment-jedi-temple {
+  background:
+    repeating-linear-gradient(115deg, transparent 0, transparent 15%, rgba(254, 240, 138, 0.15) 16%, transparent 18%),
+    linear-gradient(90deg, transparent 25%, #0f172a 25%, #1e293b 32%, transparent 32%, transparent 68%, #0f172a 68%, #1e293b 75%, transparent 75%),
+    linear-gradient(0deg, #020617 0%, #0d1e3d 40%, #1e293b 100%);
+}
+
+.environment-fortress-inquisitorius {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(220, 38, 38, 0.4) 0%, transparent 30%),
+    radial-gradient(circle at 90% 80%, rgba(220, 38, 38, 0.4) 0%, transparent 30%),
+    linear-gradient(90deg, #09090b 0%, #18181b 15%, transparent 15%, transparent 85%, #18181b 85%, #09090b 100%),
+    linear-gradient(0deg, #020617 10%, #051829 60%, #020617 100%);
+}
+
+.environment-theed-generator-shaft {
+  background:
+    linear-gradient(90deg, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0) 5%, rgba(239, 68, 68, 0) 95%, rgba(239, 68, 68, 0.4) 100%),
+    radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.3) 0%, transparent 60%),
+    linear-gradient(0deg, #090514 15%, #1c0505 45%, #05010a 100%);
+}
+
+.environment-fortress-ocean-exterior {
+  background:
+    radial-gradient(circle at 50% 10%, rgba(56, 189, 248, 0.1) 0%, transparent 50%),
+    linear-gradient(0deg, #020617 0%, #030712 15%, #1e293b 80%, #0b1329 100%);
+}
+
+.environment-fortress-prison-block {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(239, 68, 68, 0.25) 0%, transparent 45%),
+    repeating-linear-gradient(0deg, transparent 0, transparent 40px, rgba(239, 68, 68, 0.2) 41px, transparent 42px),
+    linear-gradient(90deg, #09090b 0%, #1e1b4b 15%, transparent 20%, transparent 80%, #1e1b4b 85%, #09090b 100%),
+    linear-gradient(0deg, #030712 0%, #090d16 100%);
+}
+
+.environment-fortress-interrogation-chamber {
+  background:
+    radial-gradient(circle at 50% 30%, rgba(239, 68, 68, 0.35) 0%, transparent 40%),
+    linear-gradient(90deg, #18181b 0%, #09090b 20%, transparent 25%, transparent 75%, #09090b 80%, #18181b 100%),
+    linear-gradient(0deg, #050505 0%, #111827 100%);
+}
+
+.environment-ancient-vault-entrance {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(234, 179, 8, 0.15) 0%, transparent 50%),
+    repeating-linear-gradient(45deg, transparent 0, transparent 80px, rgba(6, 182, 212, 0.1) 81px, transparent 83px),
+    linear-gradient(0deg, #0f172a 0%, #1e1b4b 50%, #020617 100%);
+}
+
+.environment-relic-chamber {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(245, 158, 11, 0.2) 0%, transparent 40%),
+    linear-gradient(90deg, #020617 0%, #111827 15%, transparent 20%, transparent 80%, #111827 85%, #020617 100%),
+    linear-gradient(0deg, #0b0f19 0%, #1e1e38 100%);
+}
+
+.environment-corrupted-core-chamber {
+  background:
+    radial-gradient(circle at 50% 55%, rgba(139, 92, 246, 0.3) 0%, transparent 35%),
+    radial-gradient(circle at 80% 20%, rgba(6, 182, 212, 0.2) 0%, transparent 25%),
+    linear-gradient(90deg, #030712 0%, #1e1b4b 25%, transparent 30%, transparent 70%, #1e1b4b 75%, #030712 100%),
+    linear-gradient(0deg, #050505 0%, #0f172a 100%);
+}
+
