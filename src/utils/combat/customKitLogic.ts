@@ -27,12 +27,19 @@ export function addTreasure(unit: CombatUnit, amount: number, state: CombatState
    if (!unit.dynamicState) unit.dynamicState = {};
    const current = unit.dynamicState.treasure || 0;
    unit.dynamicState.treasure = Math.min(10, current + amount);
+   // Keep status icon/stacks in sync with the Treasure alt system
+   applyStatus(state, unit, 'Treasure', 99, false, unit, unit.dynamicState.treasure);
    logBattleEvent(state, `💰 ${unit.name} gains +${amount} Treasure (Total: ${unit.dynamicState.treasure})!`, 'buff');
 }
 export function consumeTreasure(unit: CombatUnit, amount: number, state: CombatState): boolean {
    const current = getTreasure(unit);
    if (current >= amount) {
       unit.dynamicState.treasure = current - amount;
+      if (unit.dynamicState.treasure > 0) {
+        applyStatus(state, unit, 'Treasure', 99, false, unit, unit.dynamicState.treasure);
+      } else {
+        unit.statuses = unit.statuses.filter(s => s.name !== 'Treasure');
+      }
       logBattleEvent(state, `🪙 ${unit.name} paid ${amount} Treasure (Total: ${unit.dynamicState.treasure}).`, 'buff');
       return true;
    }

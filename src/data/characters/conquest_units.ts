@@ -97,7 +97,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Leader',
     ['Galactic Empire', 'Raid Boss'],
     'Commands the Scarif defenses.',
-    [makeAbility('scfc1', 'Bunker Defense', 'basic', 0, 'Gain Def Up', [], [])],
+    [makeAbility('scfc1', 'Bunker Defense', 'basic', 0, 'Gain Defense Up (2 turns) and recover 10% Protection.', ['Defense Up', 'protection_recovery'], ['defensive'])],
     'Empire', 4000, 'Defense', STANDARD_STATS
   ),
   createCharacter(
@@ -106,7 +106,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Attacker',
     ['Galactic Empire', 'Raid Boss'],
     'Heavy cargo walker.',
-    [makeAbility('scfc3', 'Heavy Blast', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc3', 'Heavy Blast', 'basic', 0, 'Deal heavy Physical Damage to target enemy.', ['damage'], ['offensive'])],
     'Empire', 5000, 'Heavy', STANDARD_STATS
   ),
   createCharacter(
@@ -115,7 +115,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Attacker',
     ['Galactic Empire', 'Raid Boss'],
     'Orbit strikes.',
-    [makeAbility('scfc4', 'Orbital Bombardment', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc4', 'Orbital Bombardment', 'basic', 0, 'Deal Physical Damage to all enemies.', ['damage_aoe'], ['offensive', 'aoe'])],
     'Empire', 5000, 'Heavy', STANDARD_STATS
   ),
   createCharacter(
@@ -124,7 +124,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Leader',
     ['Crimson Dawn', 'Raid Boss'],
     'Syndicate lieutenant.',
-    [makeAbility('scfc5', 'Syndicate Fire', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc5', 'Syndicate Fire', 'basic', 0, 'Deal Physical Damage to target enemy. Inflict Offense Down (2 turns).', ['damage', 'Offense Down'], ['offensive'])],
     'Scoundrel', 4000, 'Leader', STANDARD_STATS
   ),
   createCharacter(
@@ -133,7 +133,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Attacker',
     ['Crimson Dawn'],
     'Syndicate thug.',
-    [makeAbility('scfc7', 'Blaster Shot', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc7', 'Blaster Shot', 'basic', 0, 'Deal Physical Damage to target enemy.', ['damage'], ['offensive'])],
     'Scoundrel', 3000, 'Attacker', STANDARD_STATS
   ),
 ];

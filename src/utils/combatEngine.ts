@@ -4143,12 +4143,26 @@ function parseAndApplyEffects(
     
     let targetEnemies = globalTargetEnemies;
 
+    // Statuses that should persist / stack across the battle when gained from effects
+    const LONG_STATUS = new Set([
+      'Purge', 'Order 66', 'Armor Shred', 'Last Hope', 'Endless Legion', 'Resolve', 'Analysis',
+      'Treasure', 'Raid Mark', 'Contract', 'Imperial Contract', 'Momentum', 'Combined Arms',
+      'Council Guidance', 'Pathfinder', 'Insight', 'Intel', 'Impending Doom', 'Tactical Data',
+      'Tactical Advantage', 'Collector', 'Bounty', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
+      'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Secrecy', 'Payout',
+      'Imperial Approval', 'Information Broker', 'Corruption', 'Debt', 'Dossier', 'Guardian\'s Resolve'
+    ]);
+
     // Debuffs
     [
-      'Exposed', 'Defense Down', 'Speed Down', 'Offense Down', 'Ability Block',
+      'Exposed', 'Expose', 'Defense Down', 'Speed Down', 'Offense Down', 'Ability Block', 'Blocked',
       'Healing Immunity', 'Stun', 'Frostbite', 'Analyze', 'Purge', 'Bribed', 'Intimidated',
       'Daze', 'Target Lock', 'Vulnerable', 'Burning', 'Blind', 'Damage Over Time', 'Shattered Defense',
-      'Plague', 'Thermal Detonator', 'Order 66', 'Isolation', 'Marked', 'Potency Down', 'Shock', 'Buff Immunity', 'Fear', 'Pursued', 'Lockdown'
+      'Plague', 'Thermal Detonator', 'Order 66', 'Isolation', 'Marked', 'Marked Target', 'Potency Down',
+      'Tenacity Down', 'Shock', 'Buff Immunity', 'Fear', 'Pursued', 'Lockdown', 'Critical Chance Down',
+      'Accuracy Down', 'Stagger', 'Armor Shred', 'Corruption', 'Debt', 'Hostage', 'Infested',
+      'Information Broker', 'Explosive Charge', 'Foil', 'Tortured', 'Deathmark', 'Ambushed',
+      'Predicted', 'Suppressed', 'Battlefield Corruption', 'Imperial Decree', 'Dossier', 'Analyze'
     ].forEach(db => {
       const dbTag = db.toLowerCase().replace(/ /g, '_');
       if (effect.includes(db) || effect.includes(dbTag)) {
@@ -4157,7 +4171,15 @@ function parseAndApplyEffects(
         if (stackMatch) {
             count = parseInt(stackMatch[1] || stackMatch[2] || stackMatch[3] || '1');
         }
-        targetEnemies.forEach(e => applyStatus(state, e, db, db === 'Purge' ? 3 : 2, true, attacker, count));
+        // Canonicalize aliases
+        const statusName = db === 'Expose' ? 'Exposed' : (db === 'Blocked' ? 'Ability Block' : db);
+        const duration = statusName === 'Purge' ? 3 : (LONG_STATUS.has(statusName) ? 99 : 2);
+        let recipients = targetEnemies;
+        if (effectLower.includes(`${dbTag}_aoe`) || effectLower.includes(`${db.toLowerCase()}_aoe`) || effectLower === 'debuff_aoe') {
+          recipients = (attacker.team === 'player' ? state.enemyTeam : state.playerTeam)
+            .filter(u => u.activeInBattle && u.hp > 0);
+        }
+        recipients.forEach(e => applyStatus(state, e, statusName, duration, true, attacker, count));
       }
     });
 
@@ -4170,10 +4192,17 @@ function parseAndApplyEffects(
     
     // Buffs
     [
-      'Defense Up', 'Speed Up', 'Tenacity Up', 'Offense Up', 'Retribution', 
-      'Stealth', 'Taunt', 'Foresight', 'Advantage', 'Protection Up', 
-      'Critical Chance Up', 'Critical Damage Up', 'Inspired',
-      'Heal Over Time', 'Protection Over Time', 'Dramatic Entrance', 'Damage Immunity', 'Potency Up', 'Riot Control'
+      'Defense Up', 'Speed Up', 'Tenacity Up', 'Offense Up', 'Health Up', 'Retribution',
+      'Stealth', 'Taunt', 'Foresight', 'Advantage', 'Protection Up',
+      'Critical Chance Up', 'Critical Damage Up', 'Inspired', 'Accuracy Up', 'Defense Penetration Up',
+      'Heal Over Time', 'Protection Over Time', 'Dramatic Entrance', 'Damage Immunity', 'Potency Up',
+      'Riot Control', 'Momentum', 'Combined Arms', 'Pathfinder', 'Negotiator', 'Secrecy', 'Treasure',
+      'Payout', 'Raid Mark', 'Artifact', 'Contract', 'Imperial Contract', 'Bounty', 'Collector',
+      'Last Hope', 'Endless Legion', 'Resolve', 'Analysis', 'Insight', 'Intel', 'Impending Doom',
+      'Tactical Data', 'Tactical Advantage', 'Dark Maelstrom', 'Rule of Two', 'Unlimited Power',
+      'Veteran Orders', 'Entrenched', 'Blaze Of Glory', 'Reanimated', 'Elusive', 'Unconventional Tactics',
+      'Imperial Approval', 'Ordered Fire', 'Council Guidance', "Guardian's Resolve", 'Inspired',
+      'Whiteout', 'Ultimate Stance', 'Protect the Child'
     ].forEach(bf => {
       const bfTag = bf.toLowerCase().replace(/ /g, '_');
       if (effect.includes(bf) || effect.includes(bfTag)) {
@@ -4185,7 +4214,14 @@ function parseAndApplyEffects(
         if (stackMatch) {
             count = parseInt(stackMatch[1] || stackMatch[2] || stackMatch[3] || '1');
         }
-        targetAllies.forEach(a => applyStatus(state, a, bf, 2, false, attacker, count));
+        const duration = LONG_STATUS.has(bf) ? 99 : 2;
+        // AoE-tagged custom statuses (Secrecy_aoe, etc.) still match via includes(bf)
+        let recipients = targetAllies;
+        if (effectLower.includes(`${bfTag}_aoe`) || effectLower.includes(`${bf.toLowerCase()}_aoe`)) {
+          recipients = (attacker.team === 'player' ? state.playerTeam : state.enemyTeam)
+            .filter(u => u.activeInBattle && u.hp > 0);
+        }
+        recipients.forEach(a => applyStatus(state, a, bf, duration, false, attacker, count));
       }
     });
 
