@@ -12,7 +12,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Consumed completely by pain and rage, stripping away restraint in favor of raw destruction.',
     [
       makeAbility('vsd_basic', 'Crippled Fury', 'basic', 0, 'Deal Physical Damage. If target is Jedi, attack again. 50% chance to inflict Healing Immunity (2 turns).', ['damage', 'anti_jedi', 'Healing Immunity'], ['offensive']),
-      makeAbility('vsd_s1', 'Hatred Sustains Me', 'special', 3, 'Gain Offense Up, Critical Damage Up, Defense Penetration Up. Lose 10% Health. Below 75% HP: +20% Offense. Below 50% HP: Gain Retribution. Below 25% HP: Gain Bonus Turn.', ['buff_self', 'Offense Up', 'Retribution', 'Critical Damage Up'], ['offensive']),
+      makeAbility('vsd_s1', 'Hatred Sustains Me', 'special', 3, 'Gain Offense Up, Critical Damage Up, Defense Penetration Up. Lose 10% Health. Below 75% HP: +20% Offense. Below 50% HP: Gain Retribution. Below 25% HP: Gain Bonus Turn.', ['buff_self', 'Offense Up', 'Retribution', 'Critical Damage Up', 'Defense Penetration Up'], ['offensive']),
       makeAbility('vsd_s2', 'Duel in the Ashes', 'special', 4, 'Ignore Taunt. Massive Physical Damage. Target below 50% HP: Ignore Protection. If Jedi: inflict Daze (2 turns).', ['damage_heavy', 'ignore_taunt', 'Daze', 'Taunt'], ['offensive']),
       makeAbility('vsd_s3', 'Shattered Machine', 'special', 5, 'AoE Physical Damage. Recover 5% HP per debuffed enemy. Enemies with debuffs lose 5% TM.', ['damage_aoe', 'heal_self'], ['offensive']),
       makeAbility('vsd_leader', 'Fueled by Agony', 'leader', 0, 'Empire allies +30% Offense, +20 Speed. Empire falls below 50% HP -> recover 5% Protection. Jedi gain buffs -> Empire allies gain 5% TM.', ['leader_empire'], []),
@@ -97,7 +97,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Leader',
     ['Galactic Empire', 'Raid Boss'],
     'Commands the Scarif defenses.',
-    [makeAbility('scfc1', 'Bunker Defense', 'basic', 0, 'Gain Def Up', [], [])],
+    [makeAbility('scfc1', 'Bunker Defense', 'basic', 0, 'Gain Defense Up (2 turns) and recover 10% Protection.', ['Defense Up', 'protection_recovery'], ['defensive'])],
     'Empire', 4000, 'Defense', STANDARD_STATS
   ),
   createCharacter(
@@ -106,7 +106,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Attacker',
     ['Galactic Empire', 'Raid Boss'],
     'Heavy cargo walker.',
-    [makeAbility('scfc3', 'Heavy Blast', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc3', 'Heavy Blast', 'basic', 0, 'Deal heavy Physical Damage to target enemy.', ['damage'], ['offensive'])],
     'Empire', 5000, 'Heavy', STANDARD_STATS
   ),
   createCharacter(
@@ -115,7 +115,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Attacker',
     ['Galactic Empire', 'Raid Boss'],
     'Orbit strikes.',
-    [makeAbility('scfc4', 'Orbital Bombardment', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc4', 'Orbital Bombardment', 'basic', 0, 'Deal Physical Damage to all enemies.', ['damage_aoe'], ['offensive', 'aoe'])],
     'Empire', 5000, 'Heavy', STANDARD_STATS
   ),
   createCharacter(
@@ -124,7 +124,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Leader',
     ['Crimson Dawn', 'Raid Boss'],
     'Syndicate lieutenant.',
-    [makeAbility('scfc5', 'Syndicate Fire', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc5', 'Syndicate Fire', 'basic', 0, 'Deal Physical Damage to target enemy. Inflict Offense Down (2 turns).', ['damage', 'Offense Down'], ['offensive'])],
     'Scoundrel', 4000, 'Leader', STANDARD_STATS
   ),
   createCharacter(
@@ -133,7 +133,7 @@ export const CONQUEST_UNITS: Character[] = [
     'Attacker',
     ['Crimson Dawn'],
     'Syndicate thug.',
-    [makeAbility('scfc7', 'Blaster Shot', 'basic', 0, 'Damage', [], [])],
+    [makeAbility('scfc7', 'Blaster Shot', 'basic', 0, 'Deal Physical Damage to target enemy.', ['damage'], ['offensive'])],
     'Scoundrel', 3000, 'Attacker', STANDARD_STATS
   ),
 ];

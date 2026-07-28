@@ -13,16 +13,26 @@ export const STATUS_DEFINITIONS: Record<string, {
         potency?: number;
         critChance?: number;
         critDamage?: number;
+        maxHp?: number; // multiplier to effective max health scaling / heal base
+        healReceived?: number; // additive heal potency (0.25 = +25%)
+        accuracy?: number; // additive hit chance
+        evasion?: number; // additive evade chance
+        defensePenetration?: number; // fraction of defense ignored (0.25 = 25%)
+        critAvoidance?: number; // subtract from attacker crit chance
     };
 }> = {
     // Buffs
     'Offense Up': { name: 'Offense Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { offense: 1.5 }, desc: 'Increases Offense by 50%' },
+    'Health Up': { name: 'Health Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { maxHp: 1.15, healReceived: 0.25 }, desc: '+15% Max Health effectiveness and +25% incoming healing while active' },
     'Defense Up': { name: 'Defense Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { defense: 1.5 }, desc: 'Increases Defense by 50%' },
     'Speed Up': { name: 'Speed Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { speed: 1.25 }, desc: 'Increases Speed by 25%' },
     'Tenacity Up': { name: 'Tenacity Up', type: 'buff', stackLimit: 1, flags: ['tenacity_up'], statModifiers: { tenacity: 0.5 }, desc: 'Base chance to resist harmful effects drastically increased' },
     'Potency Up': { name: 'Potency Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { potency: 0.5 }, desc: 'Base chance to apply harmful effects drastically increased' },
     'Critical Chance Up': { name: 'Critical Chance Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { critChance: 0.25 }, desc: 'Critical Hit Chance increased by 25%' },
+    'Crit Chance Up': { name: 'Crit Chance Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { critChance: 0.25 }, desc: 'Alias of Critical Chance Up. Critical Hit Chance increased by 25%' },
     'Critical Damage Up': { name: 'Critical Damage Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { critDamage: 0.5 }, desc: 'Critical Damage multiplier increased by 50%' },
+    'Evasion Up': { name: 'Evasion Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { evasion: 0.35 }, desc: '+35% chance to evade attacks' },
+    'Critical Avoidance Up': { name: 'Critical Avoidance Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { critAvoidance: 0.35 }, desc: 'Attackers have 35% reduced Critical Hit Chance against this unit' },
     'Advantage': { name: 'Advantage', type: 'buff', stackLimit: 1, flags: ['guaranteed_crit', 'consume_on_attack'], statModifiers: {}, desc: 'Next attack is a guaranteed Critical Hit' },
     'Retribution': { name: 'Retribution', type: 'buff', stackLimit: 1, flags: ['counterattack'], statModifiers: {}, desc: 'Counterattacks instantly whenever damaged' },
     'Stealth': { name: 'Stealth', type: 'buff', stackLimit: 1, flags: ['stealth'], statModifiers: {}, desc: 'Cannot be directly targeted unless all allies are Stealthed' },
@@ -30,18 +40,18 @@ export const STATUS_DEFINITIONS: Record<string, {
     'Foresight': { name: 'Foresight', type: 'buff', stackLimit: 1, flags: ['evade_next', 'consume_on_evade'], statModifiers: {}, desc: 'Evades the next attack completely' },
     'Damage Immunity': { name: 'Damage Immunity', type: 'buff', stackLimit: 1, flags: ['damage_immunity'], statModifiers: {}, desc: 'Immune to all direct damage' },
     'Heal Over Time': { name: 'Heal Over Time', type: 'buff', stackLimit: 99, flags: ['heal_on_turn_start'], statModifiers: {}, desc: 'Recovers Health at the start of next turn' },
-    'Protection Up': { name: 'Protection Up', type: 'buff', stackLimit: 1, flags: ['bonus_protection'], statModifiers: {}, desc: 'Granted a layer of Bonus Protection' },
-    'Protection Over Time': { name: 'Protection Over Time', type: 'buff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Recovers Protection at the start of next turn' },
+    'Protection Up': { name: 'Protection Up', type: 'buff', stackLimit: 1, flags: ['bonus_protection'], statModifiers: {}, desc: 'Granted a layer of Bonus Protection (default 30% Max Protection; kit % overrides)' },
+    'Protection Over Time': { name: 'Protection Over Time', type: 'buff', stackLimit: 99, flags: ['prot_on_turn_start'], statModifiers: {}, desc: 'Recovers Protection at the start of next turn' },
     'Dramatic Entrance': { name: 'Dramatic Entrance', type: 'buff', stackLimit: 1, flags: ['immune_ability_block'], statModifiers: { speed: 1.3, offense: 1.25 }, desc: 'Immune to Ability Block. +30% Speed and +25% Offense' },
     'Inspired': { name: 'Inspired', type: 'buff', stackLimit: 1, flags: [], statModifiers: { speed: 1.1, tenacity: 0.1 }, desc: 'Boosted morale: +10% Speed and Tenacity' },
-    'Unconventional Tactics': { name: 'Unconventional Tactics', type: 'buff', stackLimit: 1, flags: ['unconventional_tactics'], statModifiers: { speedAdd: 10, potency: 0.1 }, desc: '+10 Speed, +10% Potency, +10% Evasion' },
-    'Intel': { name: 'Intel', type: 'buff', stackLimit: 10, flags: [], statModifiers: {}, desc: 'Enables Agent Kallus abilities' },
-    'Insight': { name: 'Insight', type: 'buff', stackLimit: 20, flags: [], statModifiers: {}, desc: 'Ahsoka Tano (The Grey) mechanic' },
-    'Blaze Of Glory': { name: 'Blaze Of Glory', type: 'buff', stackLimit: 1, flags: ['blaze_of_glory', 'prevent_prot_recovery'], statModifiers: { offense: 1.3, critDamage: 0.2, defense: 0.8 }, desc: '+30% Offense, +20% Critical Damage, Ignore 25% Defense, -20% Defense, Cannot gain Protection Up' },
+    'Unconventional Tactics': { name: 'Unconventional Tactics', type: 'buff', stackLimit: 1, flags: ['unconventional_tactics'], statModifiers: { speedAdd: 10, potency: 0.1, evasion: 0.1 }, desc: '+10 Speed, +10% Potency, +10% Evasion' },
+    'Intel': { name: 'Intel', type: 'buff', stackLimit: 10, flags: [], statModifiers: { potency: 0.02, speedAdd: 1 }, desc: 'Enables Agent Kallus abilities. +2% Potency and +1 Speed per stack.' },
+    'Insight': { name: 'Insight', type: 'buff', stackLimit: 20, flags: [], statModifiers: { offense: 1.02, critChance: 0.01 }, desc: 'Ahsoka Tano (The Grey) mechanic. +2% Offense and +1% Crit Chance per stack.' },
+    'Blaze Of Glory': { name: 'Blaze Of Glory', type: 'buff', stackLimit: 1, flags: ['blaze_of_glory', 'prevent_prot_recovery'], statModifiers: { offense: 1.3, critDamage: 0.2, defense: 0.8, defensePenetration: 0.25 }, desc: '+30% Offense, +20% Critical Damage, Ignore 25% Defense, -20% Defense, Cannot gain Protection Up' },
     'Reanimated': { name: 'Reanimated', type: 'buff', stackLimit: 1, flags: ['reanimated'], statModifiers: {}, desc: 'Upon defeat: Revive with 20% Health, Remove Reanimated' },
-    'Analysis': { name: 'Analysis', type: 'buff', stackLimit: 20, flags: [], statModifiers: { speedAdd: 2 }, desc: '+2 Speed, +2% Mastery per stack' },
-    'Entrenched': { name: 'Entrenched', type: 'buff', stackLimit: 1, flags: ['entrenched', 'prevent_tm_reduction'], statModifiers: { defense: 1.4, speedAdd: -20 }, desc: '+40% Defense, -20 Speed, Immune to Turn Meter Reduction, Take 25% reduced AoE Damage' },
-    'Veteran Orders': { name: 'Veteran Orders', type: 'buff', stackLimit: 1, flags: ['veteran_orders', 'prevent_crit'], statModifiers: {}, desc: 'Cannot be Critically Hit, Take 25% reduced AoE Damage' },
+    'Analysis': { name: 'Analysis', type: 'buff', stackLimit: 20, flags: [], statModifiers: { speedAdd: 2, potency: 0.02 }, desc: '+2 Speed, +2% Potency/Mastery per stack' },
+    'Entrenched': { name: 'Entrenched', type: 'buff', stackLimit: 1, flags: ['entrenched', 'prevent_tm_reduction', 'aoe_damage_reduction'], statModifiers: { defense: 1.4, speedAdd: -20 }, desc: '+40% Defense, -20 Speed, Immune to Turn Meter Reduction, Take 25% reduced AoE Damage' },
+    'Veteran Orders': { name: 'Veteran Orders', type: 'buff', stackLimit: 1, flags: ['veteran_orders', 'prevent_crit', 'aoe_damage_reduction'], statModifiers: {}, desc: 'Cannot be Critically Hit, Take 25% reduced AoE Damage' },
     'Resolve': { name: 'Resolve', type: 'buff', stackLimit: 10, flags: [], statModifiers: { defense: 0.05, offense: 0.03 }, desc: '+5% Defense, +3% Offense per stack' },
     'Ultimate Stance': { name: 'Ultimate Stance', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Unit is in Ultimate Stance with enhanced combat capabilities' },
     'bonus_turn': { name: 'bonus_turn', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Granted a Bonus Turn' },
@@ -104,43 +114,70 @@ export const STATUS_DEFINITIONS: Record<string, {
     "Guardian's Resolve": { name: "Guardian's Resolve", type: 'buff', stackLimit: 10, flags: [], statModifiers: { defense: 1.05 }, desc: 'Guardian stack: +5% Defense per stack (max +50%). Reaching 10 stacks triggers full team-wide defensive burst and recovery.' },
     
         'Last Hope': { name: 'Last Hope', type: 'buff', stackLimit: 99, flags: ['prevent_cleanse'], statModifiers: { offense: 1.1 }, desc: 'Grants 10% Offense per stack. Cannot be dispelled by enemies.' },
-    'Endless Legion': { name: 'Endless Legion', type: 'buff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Separatist Droid stack effect.' },
-    'Tactical Advantage': { name: 'Tactical Advantage', type: 'buff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Trench mechanic.' },
-    'Tactical Data': { name: 'Tactical Data', type: 'buff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Trench mechanic.' },
-    'Impending Doom': { name: 'Impending Doom', type: 'buff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Trench ultimate charge mechanic.' },
-    'Dark Maelstrom': { name: 'Dark Maelstrom', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Vader mechanic.' },
-    'Rule of Two': { name: 'Rule of Two', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Sith mechanic.' },
-    'Unlimited Power': { name: 'Unlimited Power', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Palpatine mechanic.' },
-    'Deathmark': { name: 'Deathmark', type: 'debuff', stackLimit: 1, flags: ['marked', 'override_stealth'], statModifiers: {}, desc: 'Forces enemies to target this unit. Takes bonus damage when hit.' },
-    'Elusive': { name: 'Elusive', type: 'buff', stackLimit: 1, flags: ['untargetable', 'prevent_cleanse'], statModifiers: {}, desc: 'Cannot be targeted.' },
+    'Endless Legion': { name: 'Endless Legion', type: 'buff', stackLimit: 99, flags: [], statModifiers: { offense: 1.02, defense: 1.02 }, desc: 'Separatist Droid stack effect. +2% Offense and Defense per stack.' },
+    'Tactical Advantage': { name: 'Tactical Advantage', type: 'buff', stackLimit: 99, flags: [], statModifiers: { potency: 0.03, speedAdd: 2 }, desc: 'Trench mechanic. +3% Potency and +2 Speed per stack.' },
+    'Tactical Data': { name: 'Tactical Data', type: 'buff', stackLimit: 99, flags: [], statModifiers: { critChance: 0.02, offense: 1.02 }, desc: 'Trench mechanic. +2% Crit Chance and Offense per stack.' },
+    'Impending Doom': { name: 'Impending Doom', type: 'buff', stackLimit: 99, flags: [], statModifiers: { offense: 1.01 }, desc: 'Trench ultimate charge mechanic. +1% Offense per stack.' },
+    'Dark Maelstrom': { name: 'Dark Maelstrom', type: 'buff', stackLimit: 1, flags: [], statModifiers: { offense: 1.25, critDamage: 0.25 }, desc: 'Vader mechanic. +25% Offense and Critical Damage.' },
+    'Rule of Two': { name: 'Rule of Two', type: 'buff', stackLimit: 1, flags: [], statModifiers: { offense: 1.2, tenacity: 0.2 }, desc: 'Sith mechanic. +20% Offense and Tenacity.' },
+    'Unlimited Power': { name: 'Unlimited Power', type: 'buff', stackLimit: 1, flags: [], statModifiers: { offense: 1.35, potency: 0.35 }, desc: 'Palpatine mechanic. +35% Offense and Potency.' },
+    'Deathmark': { name: 'Deathmark', type: 'debuff', stackLimit: 1, flags: ['marked', 'override_stealth', 'deathmark'], statModifiers: {}, desc: 'Forces enemies to target this unit. Takes 25% bonus damage when hit.' },
+    'Elusive': { name: 'Elusive', type: 'buff', stackLimit: 1, flags: ['untargetable', 'prevent_cleanse'], statModifiers: { evasion: 0.15 }, desc: 'Cannot be targeted. +15% Evasion.' },
     'Contract': { name: 'Contract', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Bounty Hunter Contract.' },
-    'Bounty': { name: 'Bounty', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Bounty Hunter Reward.' },
-    'Unleashed': { name: 'Unleashed', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Starkiller Unleashed.' },
-    'Imperial Contract': { name: 'Imperial Contract', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Imperial Remnant Contract.' },
-    'Armor Shred': { name: 'Armor Shred', type: 'debuff', stackLimit: 99, flags: ['prevent_cleanse'], statModifiers: { defense: 0.5 }, desc: 'Defense permanently reduced.' },
-    'Debt': { name: 'Debt', type: 'debuff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Hondo mechanic.' },
-    'Corruption': { name: 'Corruption', type: 'debuff', stackLimit: 99, flags: [], statModifiers: {}, desc: 'Corruption mechanic.' },
-    'Collector': { name: 'Collector', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Collector mechanic.' },
-    'Infested': { name: 'Infested', type: 'debuff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Takes bonus damage.' },
-    'Foil': { name: 'Foil', type: 'debuff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Foil buff/debuff mechanic.' },
+    'Bounty': { name: 'Bounty', type: 'buff', stackLimit: 1, flags: [], statModifiers: { offense: 1.1, speedAdd: 10 }, desc: 'Bounty Hunter Reward. +10% Offense, +10 Speed.' },
+    'Unleashed': { name: 'Unleashed', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: { offense: 1.4, critDamage: 0.3 }, desc: 'Starkiller Unleashed. +40% Offense, +30% Critical Damage.' },
+    'Imperial Contract': { name: 'Imperial Contract', type: 'debuff', stackLimit: 1, flags: ['prevent_cleanse', 'imperial_contract'], statModifiers: {}, desc: 'Marked by Rebel Hunters. Transfers when the holder is defeated. Enables Rebel Hunter Contract synergies.' },
+    'Armor Shred': { name: 'Armor Shred', type: 'debuff', stackLimit: 99, flags: ['prevent_cleanse'], statModifiers: { defense: 0.5 }, desc: 'Defense permanently reduced 50% per stack (multiplicative).' },
+    'Debt': { name: 'Debt', type: 'debuff', stackLimit: 99, flags: [], statModifiers: { offense: 0.97, speedAdd: -1 }, desc: 'Hondo mechanic. -3% Offense and -1 Speed per stack.' },
+    'Corruption': { name: 'Corruption', type: 'debuff', stackLimit: 99, flags: ['corruption'], statModifiers: { defense: 0.95, tenacity: -0.03 }, desc: 'Corruption mechanic. -5% Defense and -3% Tenacity per stack.' },
+    'Collector': { name: 'Collector', type: 'buff', stackLimit: 1, flags: [], statModifiers: { potency: 0.2, speedAdd: 15 }, desc: 'Collector mechanic. +20% Potency, +15 Speed.' },
+    'Infested': { name: 'Infested', type: 'debuff', stackLimit: 1, flags: ['infested'], statModifiers: { defense: 0.85 }, desc: 'Takes 25% bonus damage. Defense reduced 15%.' },
+    'Foil': { name: 'Foil', type: 'debuff', stackLimit: 1, flags: ['foil'], statModifiers: { offense: 0.85, tenacity: -0.15 }, desc: 'Plans disrupted: -15% Offense, -15% Tenacity.' },
     'Critical Chance Down': { name: 'Critical Chance Down', type: 'debuff', stackLimit: 1, flags: [], statModifiers: { critChance: -0.25 }, desc: 'Critical Chance reduced by 25%.' },
-    'Accuracy Up': { name: 'Accuracy Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Accuracy increased.' },
-    'Defense Penetration Up': { name: 'Defense Penetration Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Defense Penetration increased.' },
-    'Accuracy Down': { name: 'Accuracy Down', type: 'debuff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Accuracy decreased.' },
-    'Stagger': { name: 'Stagger', type: 'debuff', stackLimit: 1, flags: ['consume_on_hit'], statModifiers: {}, desc: 'Next time this unit takes damage, it loses 100% Turn Meter.' },
+    'Accuracy Up': { name: 'Accuracy Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { accuracy: 0.35 }, desc: 'Accuracy increased by 35%.' },
+    'Defense Penetration Up': { name: 'Defense Penetration Up', type: 'buff', stackLimit: 1, flags: [], statModifiers: { defensePenetration: 0.35 }, desc: 'Ignore 35% of target Defense.' },
+    'Accuracy Down': { name: 'Accuracy Down', type: 'debuff', stackLimit: 1, flags: [], statModifiers: { accuracy: -0.35 }, desc: 'Accuracy decreased by 35%.' },
+    'Evasion Down': { name: 'Evasion Down', type: 'debuff', stackLimit: 1, flags: [], statModifiers: { evasion: -0.35 }, desc: 'Evasion decreased by 35%.' },
+    'Stagger': { name: 'Stagger', type: 'debuff', stackLimit: 1, flags: ['consume_on_hit', 'stagger'], statModifiers: {}, desc: 'Next time this unit takes damage, it loses 100% Turn Meter.' },
 
     // Custom Expansion Statuses
-    'Information Broker': { name: 'Information Broker', type: 'debuff', stackLimit: 3, flags: ['information_broker'], statModifiers: {}, desc: 'Tracked by The Network. Triggers powerful anti-faction synergies.' },
+    'Information Broker': { name: 'Information Broker', type: 'debuff', stackLimit: 3, flags: ['information_broker'], statModifiers: { tenacity: -0.05 }, desc: 'Tracked by The Network. Triggers powerful anti-faction synergies. -5% Tenacity per stack.' },
+    'Info Broker': { name: 'Info Broker', type: 'debuff', stackLimit: 3, flags: ['information_broker'], statModifiers: { tenacity: -0.05 }, desc: 'Alias of Information Broker.' },
     'Treasure': { name: 'Treasure', type: 'buff', stackLimit: 10, flags: ['treasure'], statModifiers: { offense: 1.02, potency: 0.02 }, desc: '+2% Offense and +2% Potency per stack. Triggers pirate mechanics.' },
     'Hostage': { name: 'Hostage', type: 'debuff', stackLimit: 1, flags: ['prevent_assist', 'prevent_counter', 'hostage'], statModifiers: { offense: 0.8 }, desc: '-20% Offense. Cannot Assist or Counterattack.' },
     'Payout': { name: 'Payout', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'payout'], statModifiers: {}, desc: 'Reward for completing a Corsair contract.' },
     'Raid Mark': { name: 'Raid Mark', type: 'buff', stackLimit: 10, flags: ['raid_mark'], statModifiers: {}, desc: 'Marks enemy vulnerability. Stacks to trigger Captain Ithano\'s Payout.' },
     'Secrecy': { name: 'Secrecy', type: 'buff', stackLimit: 1, flags: ['untargetable', 'prevent_copy', 'secrecy'], statModifiers: { critChance: 0.25, critDamage: 0.25 }, desc: 'Cannot be targeted directly. +25% Critical Chance, +25% Critical Damage.' },
     'Artifact': { name: 'Artifact', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: {}, desc: 'Powerful ancient relic.' },
-    'Explosive Charge': { name: 'Explosive Charge', type: 'debuff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Detonates for massive damage.' },
-    'Tortured': { name: 'Tortured', type: 'debuff', stackLimit: 1, flags: [], statModifiers: {}, desc: 'Exposed to interrogations. Feeds 0-0-0 mechanics.' },
+    'Explosive Charge': { name: 'Explosive Charge', type: 'debuff', stackLimit: 1, flags: ['explosive_charge'], statModifiers: {}, desc: 'Detonates for 20% Max Health damage when consumed or on expiration.' },
+    'Tortured': { name: 'Tortured', type: 'debuff', stackLimit: 1, flags: ['tortured'], statModifiers: { defense: 0.9, tenacity: -0.1 }, desc: 'Exposed to interrogations. Feeds 0-0-0 mechanics. -10% Defense and Tenacity.' },
     'Imperial Decree': { name: 'Imperial Decree', type: 'debuff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: { speedAdd: -10, tenacity: -0.20 }, desc: 'Designated an enemy of the Empire. -10 Speed and -20% Tenacity. Cannot be copied, dispelled, or prevented.' },
     'Dossier': { name: 'Dossier', type: 'debuff', stackLimit: 5, flags: [], statModifiers: {}, desc: 'Sought-after imperial evidence. Enables advanced ISB execution strategies and tactical debuffs.' },
     'Expose': { name: 'Expose', type: 'debuff', stackLimit: 1, flags: ['bonus_damage_on_hit', 'consume_on_hit'], statModifiers: {}, desc: 'Takes bonus damage equivalent to 10% Max HP when damaged next' },
-    'Protect the Child': { name: 'Protect the Child', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'protect_the_child'], statModifiers: {}, desc: 'Rotta the Huttlet accompanies this unit. If this unit loses all Protection, the entire team suffers Offense Down until protection is restored.' }
+    'Protect the Child': { name: 'Protect the Child', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'protect_the_child'], statModifiers: {}, desc: 'Rotta the Huttlet accompanies this unit. If this unit loses all Protection, the entire team suffers Offense Down until protection is restored.' },
+
+    // Scripted / ability-named statuses previously applied or checked without definitions
+    'Imperial Approval': { name: 'Imperial Approval', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: { offense: 1.15, tenacity: 0.15 }, desc: 'Emperor Palpatine holds Imperial Approval. Imperial allies recover Protection when enemies fall.' },
+    'Ordered Fire': { name: 'Ordered Fire', type: 'buff', stackLimit: 1, flags: [], statModifiers: { critChance: 0.1 }, desc: 'Coordinated volley. This unit has issued or received Ordered Fire and fights with heightened coordination.' },
+    // Alias recognized by AI / logs (canonical status remains Ability Block)
+    'Blocked': { name: 'Blocked', type: 'debuff', stackLimit: 1, flags: ['prevent_special'], statModifiers: {}, desc: 'Alias of Ability Block. Cannot use Special or Ultimate abilities.' },
+
+    // Imperial Architects — The Project
+    'The Project': { name: 'The Project', type: 'buff', stackLimit: 99, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Team construction progress toward the Imperial superweapon. Reaches Complete at 25 stacks. Cannot be dispelled, copied, or prevented.' },
+    'The Project Complete': { name: 'The Project Complete', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'The Project has reached 25 stacks. Authority By All Means is unlocked.' },
+    'Hostage Scientist': { name: 'Hostage Scientist', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: {}, desc: 'Galen Erso is held as the Hostage Scientist. Cannot be dispelled. Damaging him advances The Project.' },
+
+    // Kit condition trackers
+    'Brotherly Love': { name: 'Brotherly Love', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse'], statModifiers: {}, desc: 'Nightbrother bond between Maul and Savage. Enables shared TM and Offense synergies.' },
+    'Scum': { name: 'Scum', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: {}, desc: "Jabba's Pet. Salacious B. Crumb gains +50 Speed after taking 10 turns." },
+
+    // Stack / form trackers used by raid exclusives and Emperor's Hand
+    'Wrath': { name: 'Wrath', type: 'buff', stackLimit: 10, flags: ['prevent_cleanse'], statModifiers: { offense: 1.02 }, desc: "Starkiller's Emperor's Wrath stacks. +2% Offense per stack. At 10: consume for Offense Up, Critical Damage Up, Defense Penetration Up." },
+    'Guarded Position': { name: 'Guarded Position', type: 'buff', stackLimit: 3, flags: [], statModifiers: { speedAdd: 10, offense: 1.1 }, desc: 'Bly escort stacks. +10 Speed and +10% Offense per stack. At 3: converts to Veteran Commander.' },
+    'Veteran Commander': { name: 'Veteran Commander', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: { offense: 1.25, defensePenetration: 0.25 }, desc: 'Bly at full Guarded Position. Assist when Jedi attack; ignore Taunt and 25% Defense.' },
+    'Duelist': { name: 'Duelist', type: 'buff', stackLimit: 5, flags: [], statModifiers: { speedAdd: 10, offense: 1.1 }, desc: 'Maul consecutive-hit stacks. +10 Speed and +10% Offense per stack. At 5: Master Duelist.' },
+    'Master Duelist': { name: 'Master Duelist', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: { offense: 1.75, speedAdd: 40, defensePenetration: 0.5 }, desc: '+75% Offense, +40 Speed, ignore Taunt, ignore 50% Defense.' },
+    'Advance': { name: 'Advance', type: 'buff', stackLimit: 5, flags: [], statModifiers: { speedAdd: 5, defense: 1.05 }, desc: 'AT-AT walker advance stacks. +5 Speed and +5% Defense per stack. At 5: Siege Formation.' },
+    'Siege Formation': { name: 'Siege Formation', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy'], statModifiers: { defensePenetration: 0.3 }, desc: 'Imperial Troopers ignore Taunt, gain 30% Defense Penetration, recover 5% Protection vs debuffed enemies.' },
+    'Museum Guardian': { name: 'Museum Guardian', type: 'buff', stackLimit: 1, flags: ['prevent_cleanse', 'prevent_copy', 'prevent_prevent'], statModifiers: { offense: 1.75, speedAdd: 40, defensePenetration: 0.4 }, desc: 'IG-90 at 4 Artifacts. +75% Offense, +40 Speed, ignore 40% Defense, enhanced assists and saves.' }
 };

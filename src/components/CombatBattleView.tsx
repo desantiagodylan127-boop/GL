@@ -605,7 +605,7 @@ export const CombatBattleView: React.FC<CombatBattleViewProps> = ({
           const copy = { ...combatState };
           const palpy = copy.playerTeam.find(u => u.characterId === 'emperor_palpatine')!;
           if (!palpy.statuses.some(s => s.name === 'Imperial Approval')) {
-            palpy.statuses.push({ name: 'Imperial Approval', duration: 99, isDebuff: false });
+            applyStatus(copy as any, palpy, 'Imperial Approval', 99, false, palpy);
           }
           copy.battleLog.push({
             text: "👑 Scripted Encounter: Emperor Palpatine gains the unique buff: Imperial Approval!",
