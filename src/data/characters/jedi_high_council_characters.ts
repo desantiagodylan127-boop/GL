@@ -46,7 +46,7 @@ export const JEDI_HIGH_COUNCIL_CHARACTERS: Character[] = [
     'A respected High Council diplomat who speeds up council members and shields allies at low health.',
     [
       makeAbility('adi_basic', 'Council Saber Form', 'basic', 0, 'Deal Physical Damage and recover 5% Protection.', ['damage', 'protection_recovery'], ['offensive']),
-      makeAbility('adi_special_1', 'Coordinated Defense', 'special', 3, 'Jedi High Council allies gain Defense Up (2 turns) and Critical Avoidance Up (2 turns).', ['defense_up', 'crit_avoidance_up', 'Defense Up'], ['defensive']),
+      makeAbility('adi_special_1', 'Coordinated Defense', 'special', 3, 'Jedi High Council allies gain Defense Up (2 turns) and Critical Avoidance Up (2 turns).', ['defense_up', 'crit_avoidance_up', 'Defense Up', 'Critical Avoidance Up'], ['defensive']),
       makeAbility('adi_special_2', 'Council Intervention', 'special', 4, 'All Jedi allies recover 15% Health and 15% Protection.', ['heal', 'protection_recovery'], ['heal']),
       makeAbility('adi_leader', 'Council Discipline', 'leader', 0, 'Jedi High Council allies gain +25 Speed and +20% Max Health. Whenever Jedi allies counterattack, recover 3% Protection. Whenever allies gain buffs, they gain 2% Turn Meter.', ['buff_faction'], []),
       makeAbility('adi_unique', 'Jedi Authority', 'unique', 0, 'Whenever allies fall below 50% Health, Adi Gallia gains Foresight (1 turn).', ['foresight_passive', 'Foresight'], [])
@@ -64,7 +64,7 @@ export const JEDI_HIGH_COUNCIL_CHARACTERS: Character[] = [
     ['Jedi', 'Jedi High Council'],
     'Compassionate Jedi Master who channels incredible serenity into patient team healing.',
     [
-      makeAbility('lumi_basic', 'Calm Saber', 'basic', 0, 'Deal Special Damage. Random Jedi ally gains Evasion Up (1 turn).', ['damage'], ['offensive']),
+      makeAbility('lumi_basic', 'Calm Saber', 'basic', 0, 'Deal Special Damage. Random Jedi ally gains Evasion Up (1 turn).', ['damage', 'Evasion Up'], ['offensive']),
       makeAbility('lumi_special_1', 'Healing Wave', 'special', 3, 'All Jedi allies recover 20% Health.', ['heal'], ['heal']),
       makeAbility('lumi_special_2', 'Inner Serenity', 'special', 4, 'Jedi allies gain Tenacity Up (2 turns) and Defense Up (2 turns).', ['tenacity_up', 'defense_up', 'Defense Up', 'Tenacity Up'], ['defensive']),
       makeAbility('lumi_unique', 'Serene Wisdom', 'unique', 0, 'Whenever Jedi allies recover Health, Luminara Unduli gains 5% Turn Meter. Whenever allies gain buffs, recover 2% Health.', ['turn_meter_gain', 'heal_passive'], [])

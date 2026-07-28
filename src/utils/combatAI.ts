@@ -21,7 +21,12 @@ export function getAIChoice(
   // 2. Filter available abilities that are off cooldown
   const availableAbilities = unit.abilities.filter(ab => {
     const cd = unit.cooldowns[ab.id] || 0;
-    const isBlocked = unit.statuses.some(s => s.name.toUpperCase() === 'ABILITY BLOCK' || s.name === 'Blocked');
+    const isBlocked = unit.statuses.some(s =>
+      s.name === 'Ability Block' ||
+      s.name === 'ABILITY BLOCK' ||
+      s.name === 'Blocked' ||
+      s.name.toUpperCase() === 'ABILITY BLOCK'
+    );
     const ultimateNotReady = ab.type === 'ultimate' && (unit.ultimateCharge ?? 0) < 100;
     const isRestricted = isBlocked && (ab.type === 'special' || ab.type === 'ultimate') || ultimateNotReady;
     return cd === 0 && !isRestricted && ab.type !== 'leader' && ab.type !== 'unique';
