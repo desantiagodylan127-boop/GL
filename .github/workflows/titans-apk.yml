@@ -24,9 +24,9 @@ jobs:
       - name: Build debug APK
         run: gradle --no-daemon :app:assembleDebug
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk TITANS-Launch-Alpha-01.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk TITANS-Launch-Alpha-02.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: TITANS-Launch-Alpha-01
-          path: TITANS-Launch-Alpha-01.apk
+          name: TITANS-Launch-Alpha-02
+          path: TITANS-Launch-Alpha-02.apk
           if-no-files-found: error
