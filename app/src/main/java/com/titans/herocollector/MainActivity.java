@@ -1,68 +1,32 @@
 package com.titans.herocollector;
 
-import android.app.*;
+import android.app.Activity;
 import android.os.Bundle;
-import android.graphics.Color;
-import android.content.*;
-import android.graphics.Typeface;
-import android.view.*;
-import android.widget.*;
-import java.util.*;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 public class MainActivity extends Activity {
-    static class Hero {
-        final String name,faction,roles; final int hp,off,def,spd; final String mechanic;
-        Hero(String n,String f,String r,int h,int o,int d,int s,String m){name=n;faction=f;roles=r;hp=h;off=o;def=d;spd=s;mechanic=m;}
+    private WebView webView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        webView = new WebView(this);
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+        webView.setWebViewClient(new WebViewClient());
+        webView.setBackgroundColor(0xFF0B0D12);
+        webView.loadUrl("file:///android_asset/index.html");
+        setContentView(webView);
     }
-    final List<Hero> heroes=new ArrayList<>();
-    final String[] factions={"Iron Marshes","The Drowned","Ashborn","Shinkai","Hyōga"};
-    final Map<String,Integer> factionTint=new HashMap<>();
-    LinearLayout body; TextView title, subtitle; SharedPreferences prefs;
 
-    @Override public void onCreate(Bundle b){super.onCreate(b); prefs=getSharedPreferences("titans",MODE_PRIVATE); seed(); buildShell(); showHome();}
-
-    void seed(){
-      factionTint.put("Iron Marshes",Color.rgb(78,92,72)); factionTint.put("The Drowned",Color.rgb(31,86,111)); factionTint.put("Ashborn",Color.rgb(132,58,38)); factionTint.put("Shinkai",Color.rgb(92,55,116)); factionTint.put("Hyōga",Color.rgb(75,112,145));
-      add("Kaiserling","Iron Marshes","Attacker • Vanguard",2300,190,160,92,"Bulwark"); add("Bulwark","Iron Marshes","Tank • Vanguard",2400,150,180,82,"Bulwark"); add("Moorjäger","Iron Marshes","Assassin • Saboteur",1850,220,95,115,"Stealth / Bleed"); add("Confessor","Iron Marshes","Saboteur • Strategist",1950,205,105,108,"Marked"); add("Prelate","Iron Marshes","Support • Strategist",2250,135,145,98,"Armor / Cleanse"); add("Margravea","Iron Marshes","Attacker • Vanguard",2050,210,130,106,"Bulwark Rally"); add("Arbalest","Iron Marshes","Tank • Saboteur",2350,170,155,88,"Siege / Marked");
-      add("Captain Reis","The Drowned","Attacker • Strategist",2100,215,130,104,"Contract: Claim the Head"); add("Qaid","The Drowned","Vanguard • Support",2350,165,165,96,"Contract: Hold the Deck"); add("The Wreckbound","The Drowned","Tank • Attacker",2600,170,175,78,"Contract: Endure"); add("The Ferryman","The Drowned","Support • Strategist",2250,150,140,100,"Contract: Safe Passage"); add("Powder Monkey","The Drowned","Saboteur • Attacker",1850,225,90,112,"Contract: Make an Example"); add("Chainmaster","The Drowned","Tank • Saboteur",2300,180,155,94,"Contract"); add("The Barnacled","The Drowned","Tank",2700,160,185,76,"Contract");
-      add("Khorzan, Ash Khagan","Ashborn","Attacker • Strategist",2200,220,140,102,"Burn → Ignite"); add("Azhara, Forge Matriarch","Ashborn","Support • Strategist",2250,150,145,98,"Forge / Armor"); add("Dorvak, Ember Vessel","Ashborn","Tank • Attacker",2550,185,175,82,"Burn / Taunt"); add("Sürakai, Standard Mother","Ashborn","Support • Vanguard",2350,145,165,95,"Banner"); add("Tarkuun, Sky Talon","Ashborn","Assassin • Strategist",1900,230,100,116,"Burn Execution"); add("Borqai, Ash Kennelmaster","Ashborn","Vanguard • Attacker",2350,200,150,100,"Burn Hunt"); add("Ulgen, Horned Ash","Ashborn","Tank • Vanguard",2650,170,180,80,"Scorched");
-      add("Akihara, Eightfold Lord","Shinkai","Attacker • Strategist",2200,225,135,104,"Poison / Hex"); add("Sayuri, White Miko","Shinkai","Support • Strategist",2250,150,145,100,"Cleanse / Hex"); add("Kaede, Koi Oracle","Shinkai","Support • Strategist",2200,145,145,102,"Turn Meter / Hex"); add("Akane, Crimson Geisha","Shinkai","Saboteur • Assassin",1900,220,105,112,"Poison / Stealth"); add("Benkei, Temple Bell","Shinkai","Tank • Vanguard",2700,165,185,78,"Hex / Armor"); add("Chikara, Gashadokuro Keeper","Shinkai","Strategist • Vanguard",2400,175,160,92,"Poison Control"); add("Yurei, Hollow Mask","Shinkai","Assassin • Saboteur",1850,230,95,118,"Hex Execution");
-      add("Iskar, Winter Tyrant","Hyōga","Tank • Vanguard",2850,180,190,78,"Chill → Frostbite → Frozen"); add("Yuki, Snow Oracle","Hyōga","Support • Strategist",2250,145,145,102,"Frozen Sustain"); add("White Antler","Hyōga","Tank • Vanguard",2750,170,185,82,"Frostbite Counter"); add("Akari, Frost Widow","Hyōga","Saboteur • Assassin",1900,220,110,115,"Frozen Execution"); add("Huginn, Raven of Winter","Hyōga","Assassin • Strategist",1950,225,110,118,"Frostbite Tempo"); add("Daichi, Frozen Oni","Hyōga","Attacker • Vanguard",2400,205,155,94,"Chill Bruiser"); add("Auriel, Aurora Seraph","Hyōga","Support • Attacker",2150,185,140,106,"Aurora Support");
+    @Override
+    public void onBackPressed() {
+        if (webView != null && webView.canGoBack()) webView.goBack();
+        else super.onBackPressed();
     }
-    void add(String n,String f,String r,int hp,int o,int d,int s,String m){heroes.add(new Hero(n,f,r,hp,o,d,s,m));}
-
-    void buildShell(){
-      LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setBackgroundColor(Color.rgb(14,16,21));
-      LinearLayout hdr=new LinearLayout(this); hdr.setOrientation(LinearLayout.VERTICAL); hdr.setPadding(24,24,24,16); hdr.setBackgroundColor(Color.rgb(24,27,35));
-      title=t("TITANS",28,true,Color.WHITE); subtitle=t("THE HERO COLLECTOR • ALPHA 01",12,false,Color.LTGRAY); hdr.addView(title); hdr.addView(subtitle); root.addView(hdr);
-      ScrollView scroll=new ScrollView(this); body=new LinearLayout(this); body.setOrientation(LinearLayout.VERTICAL); body.setPadding(20,18,20,100); scroll.addView(body); root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-      LinearLayout nav=new LinearLayout(this); nav.setBackgroundColor(Color.rgb(24,27,35)); nav.setGravity(Gravity.CENTER);
-      String[] names={"HOME","COLLECTION","CAMPAIGN","COMBAT","QA"}; for(String n:names){Button bt=button(n); nav.addView(bt,new LinearLayout.LayoutParams(0,64,1)); if(n.equals("HOME"))bt.setOnClickListener(v->showHome()); if(n.equals("COLLECTION"))bt.setOnClickListener(v->showCollection(null)); if(n.equals("CAMPAIGN"))bt.setOnClickListener(v->showCampaign()); if(n.equals("COMBAT"))bt.setOnClickListener(v->showCombat()); if(n.equals("QA"))bt.setOnClickListener(v->showQA());}
-      root.addView(nav); setContentView(root);
-    }
-    TextView t(String s,int z,boolean bold,int c){TextView v=new TextView(this);v.setText(s);v.setTextSize(z);v.setTextColor(c);v.setPadding(4,6,4,6); if(bold)v.setTypeface(Typeface.DEFAULT,Typeface.BOLD);return v;}
-    Button button(String s){Button b=new Button(this);b.setText(s);b.setTextSize(11);b.setAllCaps(false);return b;}
-    void clear(String h,String s){body.removeAllViews(); title.setText(h); subtitle.setText(s);}
-    void section(String s){TextView v=t(s,19,true,Color.WHITE);v.setPadding(0,20,0,8);body.addView(v);}
-    void card(String head,String text,int tint,View.OnClickListener l){LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(18,14,18,14);c.setBackgroundColor(tint); TextView h=t(head,17,true,Color.WHITE),p=t(text,13,false,Color.rgb(232,232,232));c.addView(h);c.addView(p); if(l!=null)c.setOnClickListener(l); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,0,0,10);body.addView(c,lp);}
-
-    void showHome(){clear("TITANS","THE HERO COLLECTOR • ALPHA 01"); card("Playable vertical slice","35 launch heroes • 5 factions • local progression • campaign shell • 5v5 combat lab",Color.rgb(40,44,56),null); section("Launch factions"); for(String f:factions){int count=0;for(Hero h:heroes)if(h.faction.equals(f))count++; final String ff=f;card(f,count+" heroes • Tap to inspect roster",factionTint.get(f),v->showCollection(ff));} section("Account"); int wins=prefs.getInt("wins",0), battles=prefs.getInt("battles",0);card("Local profile","Battles: "+battles+"   Wins: "+wins+"\nNo account or network required in Alpha 01.",Color.rgb(35,38,46),null);}
-
-    void showCollection(String filter){clear("COLLECTION",filter==null?"35 launch heroes":filter); if(filter==null){LinearLayout chips=new LinearLayout(this); chips.setOrientation(LinearLayout.HORIZONTAL); for(String f:factions){Button b=button(f.replace("The ","")); final String ff=f;b.setOnClickListener(v->showCollection(ff));chips.addView(b,new LinearLayout.LayoutParams(0,-2,1));} body.addView(chips);} for(Hero h:heroes){if(filter!=null&&!h.faction.equals(filter))continue; String prog=progress(h);card(h.name,h.roles+"\n"+h.mechanic+"\n"+prog,factionTint.get(h.faction),v->showHero(h));}}
-    String key(Hero h,String p){return h.name.replaceAll("[^A-Za-z0-9]","")+p;} String progress(Hero h){return "Lv "+prefs.getInt(key(h,"lv"),1)+" • "+prefs.getInt(key(h,"star"),1)+"★ • Gear "+prefs.getInt(key(h,"gear"),1)+" • Myth "+prefs.getInt(key(h,"myth"),0);}
-    void showHero(Hero h){clear(h.name,h.faction+" • "+h.roles); card("Combat identity",h.mechanic,factionTint.get(h.faction),null);section("Base stats");card("Stats","HP "+h.hp+"   Armor varies by kit\nOffense "+h.off+"   Defense "+h.def+"   Speed "+h.spd,Color.rgb(35,38,46),null);section("Progression"); card("Current",progress(h),Color.rgb(35,38,46),null);
-      String[] ps={"Level +1","Star +1","Gear +1","Myth +1"}; for(String p:ps){Button b=button(p);body.addView(b);b.setOnClickListener(v->{String k;int max;if(p.startsWith("Level")){k=key(h,"lv");max=100;}else if(p.startsWith("Star")){k=key(h,"star");max=10;}else if(p.startsWith("Gear")){k=key(h,"gear");max=10;}else{k=key(h,"myth");max=10;}int cur=prefs.getInt(k,p.startsWith("Myth")?0:1); if(p.startsWith("Myth")&&(prefs.getInt(key(h,"lv"),1)<100||prefs.getInt(key(h,"star"),1)<10||prefs.getInt(key(h,"gear"),1)<10)){toast("Myth requires Lv100 • 10★ • Gear 10");return;}prefs.edit().putInt(k,Math.min(max,cur+1)).apply();showHero(h);});}}
-
-    void showCampaign(){clear("CAMPAIGN","12 provinces • Normal / Legend framework"); String[] p={"Iron Marsh Province","Drowned Coast","Ashfall Steppe","Endless Glacier","Serpent Isles","Titan's Spine","Verdant Expanse","Golden Expanse","Hollow Reach","Skyreach Peaks","Crystal Basin","The First Cradle"};for(int i=0;i<p.length;i++){final int idx=i;boolean open=i<5;card((i+1)+". "+p[i],open?"AVAILABLE • Quick encounter":"LOCKED IN ALPHA 01",open?Color.rgb(43,55,49):Color.rgb(34,34,38),open?v->quickCampaign(idx):null);}}
-    void quickCampaign(int idx){String player=factions[Math.min(idx,4)],enemy=factions[(Math.min(idx,4)+1)%5];BattleResult r=simulate(player,enemy,new Random());prefs.edit().putInt("battles",prefs.getInt("battles",0)+1).putInt("wins",prefs.getInt("wins",0)+(r.win?1:0)).apply();new AlertDialog.Builder(this).setTitle(r.win?"VICTORY":"DEFEAT").setMessage(player+" vs "+enemy+"\nTurns: "+r.turns+"\nSurvivors: "+r.survivors+"\n\n"+r.log).setPositiveButton("OK",null).show();}
-
-    void showCombat(){clear("COMBAT LAB","5v5 turn-meter smoke simulator");section("Choose your faction");for(String f:factions){final String ff=f;card(f,"Run versus every other launch faction",factionTint.get(f),v->runFactionGauntlet(ff));}}
-    void runFactionGauntlet(String f){StringBuilder sb=new StringBuilder();int wins=0;for(String e:factions){if(e.equals(f))continue;BattleResult r=simulate(f,e,new Random());if(r.win)wins++;sb.append(e).append(": ").append(r.win?"WIN":"LOSS").append(" • ").append(r.turns).append(" turns\n");}new AlertDialog.Builder(this).setTitle(f+" gauntlet").setMessage(wins+" / 4 wins\n\n"+sb).setPositiveButton("Done",null).show();}
-    static class Unit{Hero h;double hp,tm;boolean alive=true;Unit(Hero x){h=x;hp=x.hp;}}
-    static class BattleResult{boolean win;int turns,survivors;String log;BattleResult(boolean w,int t,int s,String l){win=w;turns=t;survivors=s;log=l;}}
-    BattleResult simulate(String a,String b,Random rng){List<Unit>A=team(a),B=team(b);int turns=0;StringBuilder log=new StringBuilder();while(turns<250&&alive(A)>0&&alive(B)>0){Unit acting=null;List<Unit>foe=null;while(acting==null){double best=-1;for(Unit u:A)if(u.alive){u.tm+=u.h.spd/10.0;if(u.tm>=100&&u.tm>best){best=u.tm;acting=u;foe=B;}}for(Unit u:B)if(u.alive){u.tm+=u.h.spd/10.0;if(u.tm>=100&&u.tm>best){best=u.tm;acting=u;foe=A;}}}acting.tm=0;Unit target=weakest(foe);double mod=.85+rng.nextDouble()*.3;double dmg=Math.max(30,(acting.h.off*1.35-target.h.def*.28)*mod);if(acting.h.faction.equals("Ashborn"))dmg*=1.05;if(acting.h.faction.equals("Shinkai")&&rng.nextDouble()<.25)dmg*=1.15;if(acting.h.faction.equals("Hyōga")&&rng.nextDouble()<.18)target.tm=Math.max(0,target.tm-20);if(acting.h.faction.equals("Iron Marshes")&&rng.nextDouble()<.2)acting.hp=Math.min(acting.h.hp,acting.hp+acting.h.hp*.04);if(acting.h.faction.equals("The Drowned")&&rng.nextDouble()<.18)dmg*=1.2;target.hp-=dmg;if(target.hp<=0){target.hp=0;target.alive=false;}turns++;if(turns<=8)log.append(acting.h.name).append(" → ").append(target.h.name).append(" ").append((int)dmg).append("\n");}boolean win=alive(A)>alive(B);return new BattleResult(win,turns,alive(A),log.toString());}
-    List<Unit> team(String f){List<Unit>x=new ArrayList<>();for(Hero h:heroes)if(h.faction.equals(f)&&x.size()<5)x.add(new Unit(h));return x;}int alive(List<Unit>x){int c=0;for(Unit u:x)if(u.alive)c++;return c;}Unit weakest(List<Unit>x){Unit z=null;for(Unit u:x)if(u.alive&&(z==null||u.hp<z.hp))z=u;return z;}
-
-    void showQA(){clear("QA / VALIDATION","Data integrity and battle smoke tests");int errors=0;Set<String> names=new HashSet<>();for(Hero h:heroes){if(!names.add(h.name)||h.hp<=0||h.off<=0||h.def<=0||h.spd<=0)errors++;}card(errors==0?"PASS • Character registry":"FAIL • Character registry",heroes.size()+" heroes • "+errors+" validation errors",errors==0?Color.rgb(38,76,54):Color.rgb(110,40,40),null);StringBuilder roster=new StringBuilder();for(String f:factions){int c=0;for(Hero h:heroes)if(h.faction.equals(f))c++;roster.append(f).append(": ").append(c).append("\n");}card("Faction counts",roster.toString(),Color.rgb(35,38,46),null);Button b=button("RUN 25 MATCHUP SMOKE TESTS");body.addView(b);b.setOnClickListener(v->{int hangs=0;Random r=new Random(42);for(String f:factions)for(String e:factions){BattleResult br=simulate(f,e,r);if(br.turns>=250)hangs++;}new AlertDialog.Builder(this).setTitle(hangs==0?"ALL TESTS PASSED":"TEST WARNING").setMessage("25 matchups executed\nInfinite/turn-cap battles: "+hangs).setPositiveButton("OK",null).show();});}
-    void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
 }
