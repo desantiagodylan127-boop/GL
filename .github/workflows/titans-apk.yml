@@ -2,6 +2,8 @@ name: Build Titans APK
 on:
   push:
     branches: [ titans-apk-build ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
