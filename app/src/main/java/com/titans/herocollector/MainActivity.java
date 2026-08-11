@@ -20,7 +20,7 @@ public class MainActivity extends Activity {
         settings.setAllowContentAccess(true);
         webView.setWebViewClient(new WebViewClient());
         webView.setBackgroundColor(0xFF0B0D12);
-        webView.loadUrl("file:///android_asset/index.html");
+        webView.loadUrl("file:///android_asset/game.html");
         setContentView(webView);
     }
 
